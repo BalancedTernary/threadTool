@@ -13,11 +13,11 @@ int main()
     tp.setMaximumNumberOfThreads(200);
     tp.setMinimumNumberOfThreads(5);
     tp.setRedundancyRatio(1.5);
-    long long t = 1000000;
+    long long t = 10000000;
     while (t-- > 0)
     {
-        tp.add([&tp, t]() { long long y = rand()* 50000; while ((--y)*10); if(t%10==0)std::cout << (std::ostringstream("") <<y<< t << ": " << tp.getNumberOfThreads() << " : " << tp.getNumberOfIdle() << "\n").str() << std::endl << std::flush; });
-        std::this_thread::sleep_for(std::chrono::microseconds(rand()));
+        tp.add([&tp, t]() { long long y = rand()* 50000; while ((--y)*10); if(t%1==0)std::cout << (std::ostringstream("") <<y<< t << ": " << tp.getNumberOfThreads() << " : " << tp.getNumberOfIdle() << "\n").str() << std::endl << std::flush; });
+        //std::this_thread::sleep_for(std::chrono::microseconds(rand()));
     }
     
     /*tp.add([&tp]() {std::this_thread::sleep_for(std::chrono::microseconds(rand())); std::cout << "1:"<<tp.getNumberOfThreads()<<"\n" << std::flush; });

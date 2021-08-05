@@ -35,7 +35,7 @@ void ThreadPool::mainService()
 {
 	while (loopFlag)
 	{
-		if (wakeUpLength > 0)
+		while (wakeUpLength > 0)
 		{
 			--wakeUpLength;
 			{
@@ -52,7 +52,12 @@ void ThreadPool::mainService()
 				} while (unit != threadDeque.begin());
 
 			}
-			if ((numberOfThreads + 1) <= mineMath::max<uint_least64_t, uint_least64_t>(mineMath::min<uint_least64_t, uint_least64_t>(maximumNumberOfThreads, redundancyRatio * (numberOfThreads - numberOfIdle)), minimumNumberOfThreads))
+			size_t dequeLength;
+			{
+				unique_lock<mutex> m(_mFunctionDeque);
+				dequeLength = functionDeque.size();
+			}
+			if ((numberOfThreads + 1) <= mineMath::max<uint_least64_t, uint_least64_t>(mineMath::min<uint_least64_t, uint_least64_t>(maximumNumberOfThreads, redundancyRatio * (numberOfThreads - numberOfIdle - dequeLength)), minimumNumberOfThreads))
 			{
 				unique_lock<mutex> m(_mThreadDeque);
 				threadDeque.emplace_back(funSrc, fromAct, fromIdl);
@@ -153,6 +158,7 @@ void ThreadPool::add(const std::function<void(void)>& fun)
 		functionDeque.push_back(fun);
 	}
 	++wakeUpLength;
+	//unique_lock<mutex> m(_mCondition);
 	BlockingQueue.notify_one();
 }
 
@@ -216,6 +222,12 @@ int_least64_t ThreadPool::getNumberOfThreads()
 
 int_least64_t ThreadPool::getNumberOfIdle()
 {
+	{
+		if (numberOfIdle < 0)
+		{
+			std::cerr << "\an\au\am\ab\ae\ar\aO\af\aI\ad\al\ae < 0" << std::endl << flush;
+		}
+	}
 	return numberOfIdle;
 }
 
