@@ -11,7 +11,8 @@ ThreadPool::ThreadPool()
 	idleStartTime = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
 	numberOfThreads = 0;
 	numberOfIdle = 0;
-	
+	wakeUpLength = 0;
+
 	loopFlag = true;
 	serviceLoop= thread(&ThreadPool::mainService, this);
 }
@@ -34,45 +35,69 @@ void ThreadPool::mainService()
 {
 	while (loopFlag)
 	{
+		if (wakeUpLength > 0)
+		{
+			--wakeUpLength;
+			{
+				unique_lock<mutex> m(_mThreadDeque);
+				auto unit = threadDeque.end();
+				do
+				{
+					--unit;
+					if (!unit->isActivate())
+					{
+						unit->wakeUp();
+						break;
+					}
+				} while (unit != threadDeque.begin());
+
+			}
+			if ((numberOfThreads + 1) <= mineMath::max<uint_least64_t, uint_least64_t>(mineMath::min<uint_least64_t, uint_least64_t>(maximumNumberOfThreads, redundancyRatio * (numberOfThreads - numberOfIdle)), minimumNumberOfThreads))
+			{
+				unique_lock<mutex> m(_mThreadDeque);
+				threadDeque.emplace_back(funSrc, fromAct, fromIdl);
+				++numberOfThreads;
+				++numberOfIdle;
+			}
+		}
+		
 		unique_lock<mutex> m(_mCondition);
 		std::chrono::time_point<std::chrono::high_resolution_clock> time;
 		{
 			unique_lock<mutex> m(_mTime);
 			time = idleStartTime;
 		}
+
 		
-		{
-			//unique_lock<mutex> m(_mThreadDeque);
-
-			if (numberOfThreads > mineMath::max<uint_least64_t, uint_least64_t>(mineMath::min<uint_least64_t, uint_least64_t>(maximumNumberOfThreads, redundancyRatio * (numberOfThreads - numberOfIdle)), minimumNumberOfThreads))
-			{//线程超了，减少线程
-				if (numberOfIdle > 0 && (chrono::high_resolution_clock::now() - time) > idleLife)
+		if (numberOfThreads > mineMath::max<uint_least64_t, uint_least64_t>(mineMath::min<uint_least64_t, uint_least64_t>(maximumNumberOfThreads, redundancyRatio * (numberOfThreads - numberOfIdle)), minimumNumberOfThreads))
+		{//线程超了，减少线程
+			if (numberOfIdle > 0 && (chrono::high_resolution_clock::now() - time) > idleLife)
+			{
 				{
+					unique_lock<mutex> m(_mThreadDeque);
+
+					auto unit = threadDeque.begin();
+					while (unit != threadDeque.end())
 					{
-						unique_lock<mutex> m(_mThreadDeque);
-						
-						auto unit = threadDeque.begin();
-						while(unit != threadDeque.end())
+						if (!unit->isActivate())
 						{
-							if (!unit->isActivate())
-							{
-								--numberOfIdle;
-								--numberOfThreads;
-								threadDeque.erase(unit);
-								break;
-							}
-							unit++;
+							--numberOfIdle;
+							--numberOfThreads;
+							threadDeque.erase(unit);
+							break;
 						}
+						unit++;
+					}
 
-					}
-					{
-						unique_lock<mutex> m(_mTime);
-						idleStartTime = chrono::high_resolution_clock::now();
-					}
 				}
-
+				{
+					unique_lock<mutex> m(_mTime);
+					idleStartTime = chrono::high_resolution_clock::now();
+				}
 			}
+
 		}
+		
 		BlockingQueue.wait_until(m, mineMath::min(chrono::high_resolution_clock::now(), time) + idleLife);
 	}
 }
@@ -127,27 +152,8 @@ void ThreadPool::add(const std::function<void(void)>& fun)
 		unique_lock<mutex> m(_mFunctionDeque);
 		functionDeque.push_back(fun);
 	}
-	{
-		unique_lock<mutex> m(_mThreadDeque);
-		auto unit = threadDeque.end();
-		do
-		{
-			--unit;
-			if (!unit->isActivate())
-			{
-				unit->wakeUp();
-				break;
-			}
-		} while (unit != threadDeque.begin());
-
-	}
-	if ((numberOfThreads + 1) <= mineMath::max<uint_least64_t, uint_least64_t>(mineMath::min<uint_least64_t, uint_least64_t>(maximumNumberOfThreads, redundancyRatio * (numberOfThreads - numberOfIdle)), minimumNumberOfThreads))
-	{
-		unique_lock<mutex> m(_mThreadDeque);
-		threadDeque.emplace_back(funSrc, fromAct, fromIdl);
-		++numberOfThreads;
-		++numberOfIdle;
-	}
+	++wakeUpLength;
+	BlockingQueue.notify_one();
 }
 
 void ThreadPool::setMinimumNumberOfThreads(const uint_least64_t& in)

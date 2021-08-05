@@ -23,6 +23,7 @@ private:
 	std::mutex _mTime;
 	std::condition_variable BlockingQueue;
 	volatile std::atomic<bool> loopFlag;
+	volatile std::atomic<uint_least64_t> wakeUpLength;
 
 
 	volatile std::atomic<uint_least64_t> minimumNumberOfThreads;
