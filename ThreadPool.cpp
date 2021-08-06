@@ -18,15 +18,19 @@ ThreadPool::ThreadPool()
 
 ThreadPool::~ThreadPool()
 {
-	loopFlag = false;
-	BlockingQueue.notify_all();
+	{
+		unique_lock<mutex> m(_mCondition);
+		BlockingDeleting.wait(m, [this]()
+			{
+				unique_lock<mutex> m(_mFunctionDeque);
+				return functionDeque.size() <= 0;
+			});
+		loopFlag = false;
+		BlockingQueue.notify_all();
+	}
 	if (serviceLoop.joinable())
 	{
 		serviceLoop.join();
-	}
-	else
-	{
-		serviceLoop.detach();
 	}
 }
 
@@ -184,11 +188,15 @@ void ThreadPool::fromIdle()
 					* (numberOfThreads - numberOfIdles))
 				, minimumNumberOfThreads)))
 	{
-		unique_lock<mutex> m(_mTime);
-		if (idleStartTime == std::chrono::time_point<std::chrono::high_resolution_clock>::max())
 		{
-			idleStartTime = chrono::high_resolution_clock::now();
+			unique_lock<mutex> m(_mTime);
+			if (idleStartTime == std::chrono::time_point<std::chrono::high_resolution_clock>::max())
+			{
+				idleStartTime = chrono::high_resolution_clock::now();
+			}
 		}
+		//unique_lock<mutex> m(_mCondition);
+		BlockingDeleting.notify_all();
 	}
 }
 
@@ -271,4 +279,5 @@ int_least64_t ThreadPool::getNumberOfIdles()
 	}*/
 	return numberOfIdles;
 }
+
 

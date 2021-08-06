@@ -29,10 +29,6 @@ ThreadUnit::~ThreadUnit()
 	{
 		loop.join();
 	}
-	else
-	{
-		loop.detach();
-	}
 }
 
 void ThreadUnit::setFunctionSource(const std::function < std::function<void(void)>(void)>& functionSource)
@@ -49,55 +45,61 @@ void ThreadUnit::wakeUp()
 
 void ThreadUnit::loopFunction()
 {
-	while (loopFlag)
-	{
-		//unique_lock<mutex> m(_mCondition);
-		std::function<void(void)> function;
+	try {
+		while (loopFlag)
 		{
-			unique_lock<mutex> m(_mGet);
-			if (getOneFunction != nullptr)
+			//unique_lock<mutex> m(_mCondition);
+			std::function<void(void)> function;
 			{
-				function = getOneFunction();
+				unique_lock<mutex> m(_mGet);
+				if (getOneFunction != nullptr)
+				{
+					function = getOneFunction();
+				}
+				else
+				{
+					function = nullptr;
+				}
+			}
+			if (function != nullptr)
+			{
+				//idleStartTime = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
+				//unique_lock<mutex> m(_mActivate);
+				{
+					unique_lock<mutex> m(_mCondition);
+					if (!activate)
+					{
+						activate = true;
+						if (onActivate != nullptr)
+						{
+
+							onActivate();
+						}
+					}
+				}
+				function();
 			}
 			else
 			{
-				function = nullptr;
-			}
-		}
-		if (function != nullptr)
-		{
-			//idleStartTime = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
-			//unique_lock<mutex> m(_mActivate);
-			{
+				//unique_lock<mutex> m(_mActivate);
+				//idleStartTime = std::chrono::high_resolution_clock::now();
+
 				unique_lock<mutex> m(_mCondition);
-				if (!activate)
+				if (activate)
 				{
-					activate = true;
-					if (onActivate != nullptr)
+					if (onIdle != nullptr)
 					{
-
-						onActivate();
+						onIdle();
 					}
+					activate = false;
 				}
+				BlockingQueue.wait(m);
 			}
-			function();
 		}
-		else
-		{
-			//unique_lock<mutex> m(_mActivate);
-			//idleStartTime = std::chrono::high_resolution_clock::now();
+	}
+	catch (...)
+	{
 
-			unique_lock<mutex> m(_mCondition);
-			if (activate)
-			{
-				if (onIdle != nullptr)
-				{
-					onIdle();
-				}
-				activate = false;
-			}
-			BlockingQueue.wait(m);
-		}
 	}
 }
 
@@ -118,3 +120,4 @@ bool ThreadUnit::isActivate()
 	unique_lock<mutex> m(_mCondition);
 	return activate;
 }
+

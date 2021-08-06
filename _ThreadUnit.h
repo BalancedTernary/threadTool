@@ -33,6 +33,7 @@ public:
 	void setOnActivate(const std::function<void(void)>&);
 	void setOnIdle(const std::function<void(void)>&);
 	bool isActivate();
+	
 
 }; 
 

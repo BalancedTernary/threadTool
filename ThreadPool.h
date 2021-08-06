@@ -23,6 +23,8 @@ private:
 	std::mutex _mThreadDeque;
 	std::mutex _mTime;
 	std::condition_variable BlockingQueue;
+	std::condition_variable BlockingDeleting;
+
 	volatile std::atomic<bool> loopFlag;
 	volatile std::atomic<uint_least64_t> wakeUpLength;
 
@@ -65,7 +67,6 @@ public:
 	std::chrono::time_point<std::chrono::high_resolution_clock> getIdleStartTime();
 	int_least64_t getNumberOfThreads();
 	int_least64_t getNumberOfIdles();
-
 
 };
 
