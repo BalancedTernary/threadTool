@@ -142,12 +142,12 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ThreadPool.cpp" />
-    <ClCompile Include="ThreadUnit.cpp" />
+    <ClCompile Include="_ThreadUnit.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MineMath.h" />
     <ClInclude Include="ThreadPool.h" />
-    <ClInclude Include="ThreadUnit.h" />
+    <ClInclude Include="_ThreadUnit.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

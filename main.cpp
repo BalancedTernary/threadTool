@@ -1,12 +1,16 @@
 #include <iostream>
 #include "ThreadPool.h"
-#include "ThreadUnit.h"
+#include "_ThreadUnit.h"
 #include <cstdlib>
 #include <string>
 #include <iostream>
 int main()
 {
     std::cout << "Hello World!\n";
+
+    auto a = mineMath::max<uint_least64_t, uint_least64_t>(1ull,2ull);
+    auto b = mineMath::max<int_least64_t, int_least64_t>(1ull, 2ull);
+
     //ThreadUnit tu;
     ThreadPool tp;
     tp.setIdleLife(std::chrono::seconds(1));
@@ -16,8 +20,8 @@ int main()
     long long t = 10000000;
     while (t-- > 0)
     {
-        tp.add([&tp, t]() { long long y = rand()* 50000; while ((--y)*10); if(t%1==0)std::cout << (std::ostringstream("") <<y<< t << ": " << tp.getNumberOfThreads() << " : " << tp.getNumberOfIdle() << "\n").str() << std::endl << std::flush; });
-        //std::this_thread::sleep_for(std::chrono::microseconds(rand()));
+        tp.add([&tp, t]() { long long y = rand()* 50000; while ((--y)*10); if(t%1==0)std::cout << (std::ostringstream("") <<y<< t << ": " << tp.getNumberOfThreads() << " : " << tp.getNumberOfIdles() << "\n").str() << std::endl << std::flush; });
+        std::this_thread::sleep_for(std::chrono::microseconds(rand()));
     }
     
     /*tp.add([&tp]() {std::this_thread::sleep_for(std::chrono::microseconds(rand())); std::cout << "1:"<<tp.getNumberOfThreads()<<"\n" << std::flush; });

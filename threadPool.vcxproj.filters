@@ -21,7 +21,7 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ThreadUnit.cpp">
+    <ClCompile Include="_ThreadUnit.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -29,7 +29,7 @@
     <ClInclude Include="ThreadPool.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ThreadUnit.h">
+    <ClInclude Include="_ThreadUnit.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="MineMath.h">

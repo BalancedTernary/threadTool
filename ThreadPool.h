@@ -9,8 +9,9 @@
 #include <deque>
 #include <list>
 #include <chrono>
-#include<any>
-#include "ThreadUnit.h"
+#include <any>
+#include "MineMath.h"
+#include "_ThreadUnit.h"
 class ThreadPool
 {
 private:
@@ -34,7 +35,7 @@ private:
 private:
 	std::chrono::time_point<std::chrono::high_resolution_clock> idleStartTime;
 	volatile std::atomic<int_least64_t> numberOfThreads;
-	volatile std::atomic<int_least64_t> numberOfIdle;
+	volatile std::atomic<int_least64_t> numberOfIdles;
 
 
 	std::function < std::function<void(void)>(void)> funSrc;
@@ -63,7 +64,7 @@ public:
 	double getRedundancyRatio();
 	std::chrono::time_point<std::chrono::high_resolution_clock> getIdleStartTime();
 	int_least64_t getNumberOfThreads();
-	int_least64_t getNumberOfIdle();
+	int_least64_t getNumberOfIdles();
 
 
 };
