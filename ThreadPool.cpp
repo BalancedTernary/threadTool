@@ -40,8 +40,9 @@ void ThreadPool::join()
 	BlockingDeleting.wait(m, [this]()
 		{
 			unique_lock<mutex> m(_mFunctionDeque);
-			return functionDeque.size() <= 0;
+			return (functionDeque.size() <= 0 && numberOfThreads <= numberOfIdles);
 		});
+
 }
 
 void ThreadPool::mainService()

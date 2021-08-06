@@ -48,7 +48,7 @@ private:
 public:
 	ThreadPool();
 	~ThreadPool();
-	void join();
+	void join();//等待所有任务都执行完毕
 private:
 	void mainService();//连续一定时间空闲线程超过限制后如果functionDeque为空则锁定functionDeque（规定线程从后往前唤醒，从前往后删除。是否可以不对队列加锁只对要删除的元素加锁），并删除一个状态为空闲的线程，然后解除functionDeque的锁定
 	std::function<void(void)> functionSource();
