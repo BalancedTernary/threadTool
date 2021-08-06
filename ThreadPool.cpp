@@ -34,6 +34,16 @@ ThreadPool::~ThreadPool()
 	}
 }
 
+void ThreadPool::join()
+{
+	unique_lock<mutex> m(_mCondition);
+	BlockingDeleting.wait(m, [this]()
+		{
+			unique_lock<mutex> m(_mFunctionDeque);
+			return functionDeque.size() <= 0;
+		});
+}
+
 void ThreadPool::mainService()
 {
 	while (loopFlag)
