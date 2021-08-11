@@ -55,7 +55,7 @@ void Scheduler::mainService(const volatile std::atomic<volatile bool>& loopFlag)
 							std::chrono::nanoseconds duration = task->nextPoint - task->timePoint;
 							task->timePoint = task->nextPoint;
 							task->nextPoint += duration;
-							nextTime = mineMath::min(nextTime, task->timePoint);
+							nextTime = multMath::min(nextTime, task->timePoint);
 							std::list<Scheduler::_TaskUnit>::iterator subTask = task;
 							do
 							{
@@ -71,7 +71,7 @@ void Scheduler::mainService(const volatile std::atomic<volatile bool>& loopFlag)
 					}
 					else
 					{
-						nextTime = mineMath::min(nextTime, task->timePoint);
+						nextTime = multMath::min(nextTime, task->timePoint);
 						break;
 					}
 				}

@@ -149,7 +149,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Async.h" />
-    <ClInclude Include="MineMath.h" />
+    <ClInclude Include="multMath.h" />
     <ClInclude Include="MineMutex.h" />
     <ClInclude Include="Scheduler.h" />
     <ClInclude Include="ThreadPool.h" />

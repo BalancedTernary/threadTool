@@ -9,7 +9,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <iostream>
-#include "MineMath.h"
+#include "multMath.h"
 
 #include "ThreadPool.h"
 

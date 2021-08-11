@@ -10,7 +10,7 @@
 #include <list>
 #include <chrono>
 #include <variant>
-#include "MineMath.h"
+#include "multMath.h"
 #include "_ThreadUnit.h"
 
 namespace threadTool
@@ -29,11 +29,11 @@ namespace threadTool
 		std::condition_variable BlockingDeleting;
 
 		volatile std::atomic<volatile bool> loopFlag;
-		volatile std::atomic<volatile uint_fast64_t> wakeUpLength;
+		volatile std::atomic<volatile int_fast64_t> wakeUpLength;
 
 
-		volatile std::atomic<volatile uint_fast64_t> minimumNumberOfThreads;
-		volatile std::atomic<volatile uint_fast64_t> maximumNumberOfThreads;
+		volatile std::atomic<volatile int_fast64_t> minimumNumberOfThreads;
+		volatile std::atomic<volatile int_fast64_t> maximumNumberOfThreads;
 		std::chrono::duration<volatile uint_fast64_t, std::nano> idleLife;
 		volatile std::atomic< double> redundancyRatio;//线程数 冗余率
 

@@ -35,7 +35,7 @@
     <ClInclude Include="_ThreadUnit.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="MineMath.h">
+    <ClInclude Include="multMath.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Scheduler.h">

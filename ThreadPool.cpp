@@ -60,7 +60,7 @@ void ThreadPool::mainService()
 	{
 		while (wakeUpLength > 0)
 		{
-			--wakeUpLength;
+			//--wakeUpLength;
 			{
 				unique_lock<mutex> m(_mThreadDeque);
 				if (threadDeque.size() > 0)
@@ -86,8 +86,8 @@ void ThreadPool::mainService()
 			}
 			
 			if ((numberOfThreads + 1) 
-				<= mineMath::max<int_least64_t, int_least64_t>
-				(mineMath::min<int_least64_t, int_least64_t>
+				<= multMath::max<int_least64_t, int_least64_t>
+				(multMath::min<int_least64_t, int_least64_t>
 					(maximumNumberOfThreads
 						, redundancyRatio 
 						* (numberOfThreads - numberOfIdles + dequeLength))
@@ -114,8 +114,8 @@ void ThreadPool::mainService()
 		}
 
 		if (numberOfThreads 
-			> mineMath::max<int_least64_t, int_least64_t>
-			(mineMath::min<int_least64_t, int_least64_t>
+			> multMath::max<int_least64_t, int_least64_t>
+			(multMath::min<int_least64_t, int_least64_t>
 				(maximumNumberOfThreads
 					, redundancyRatio 
 					* (numberOfThreads - numberOfIdles + dequeLength))
@@ -145,16 +145,15 @@ void ThreadPool::mainService()
 					idleStartTime = chrono::high_resolution_clock::now();
 				}
 			}
-			BlockingQueue.wait_until(m, mineMath::min<std::chrono::time_point<std::chrono::high_resolution_clock>, std::chrono::time_point<std::chrono::high_resolution_clock>>(chrono::high_resolution_clock::now() + idleLife, time));
+			BlockingQueue.wait_until(m, multMath::min<std::chrono::time_point<std::chrono::high_resolution_clock>, std::chrono::time_point<std::chrono::high_resolution_clock>>(chrono::high_resolution_clock::now() + idleLife, time));
 
 		}
 		else
 		{
 			BlockingQueue.wait(m);
-
 		}
 		////增加：在适当时候永久休眠等待唤醒以节约性能
-		//BlockingQueue.wait_until(m, mineMath::min<std::chrono::time_point<std::chrono::high_resolution_clock>, std::chrono::time_point<std::chrono::high_resolution_clock>>(chrono::high_resolution_clock::now() + idleLife, time));		
+		//BlockingQueue.wait_until(m, multMath::min<std::chrono::time_point<std::chrono::high_resolution_clock>, std::chrono::time_point<std::chrono::high_resolution_clock>>(chrono::high_resolution_clock::now() + idleLife, time));		
 	}
 }
 
@@ -165,6 +164,7 @@ _ThreadUnit::Task ThreadPool::functionSource()
 		unique_lock<mutex> m(_mFunctionDeque);
 		if (functionDeque.size() > 0)
 		{
+			--wakeUpLength;
 			fun = functionDeque.front();
 			functionDeque.pop_front();
 		}
@@ -189,8 +189,8 @@ void ThreadPool::fromActivate()
 	}
 	if (dequeLength > 0 
 		|| (numberOfThreads
-			< mineMath::max<int_least64_t, int_least64_t>
-			(mineMath::min<int_least64_t, int_least64_t>
+			< multMath::max<int_least64_t, int_least64_t>
+			(multMath::min<int_least64_t, int_least64_t>
 				(maximumNumberOfThreads
 					, redundancyRatio 
 					* (numberOfThreads - numberOfIdles))
@@ -215,8 +215,8 @@ void ThreadPool::fromIdle()
 
 	if (dequeLength <= 0 && 
 		(numberOfThreads
-			> mineMath::max<int_least64_t, int_least64_t>
-			(mineMath::min<int_least64_t, int_least64_t>
+			> multMath::max<int_least64_t, int_least64_t>
+			(multMath::min<int_least64_t, int_least64_t>
 				(maximumNumberOfThreads
 					, redundancyRatio 
 					* (numberOfThreads - numberOfIdles))

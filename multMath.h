@@ -6,7 +6,7 @@
 
 #undef min
 #undef max
-namespace mineMath
+namespace multMath
 {
 	template<typename _Tp1, typename _Tp2>
 	inline auto min(const _Tp1& a, const _Tp2& b) noexcept -> const decltype(a < b ? a : b)
