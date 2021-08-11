@@ -80,7 +80,7 @@ void Scheduler::mainService(const volatile std::atomic<volatile bool>& loopFlag)
 	} while (workFlag && loopFlag);
 }
 
-void Scheduler::add(uint_fast64_t id, std::function<void(void)> task, std::chrono::time_point<std::chrono::high_resolution_clock> timePoint, std::chrono::time_point<std::chrono::high_resolution_clock> nextPoint)
+void Scheduler::add(const uint_fast64_t& id, std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint, const std::chrono::time_point<std::chrono::high_resolution_clock>& nextPoint)
 {//在调用处加锁，函数内部不加锁
 	TaskUnit unit;
 	unit.id = id;
@@ -99,7 +99,7 @@ void Scheduler::add(uint_fast64_t id, std::function<void(void)> task, std::chron
 	} while (true);
 }
 
-Scheduler::SchedulerUnit Scheduler::addInterval(std::function<void(void)> task, std::chrono::nanoseconds duration)
+Scheduler::SchedulerUnit Scheduler::addInterval(std::function<void(void)> task, const std::chrono::nanoseconds& duration)
 {
 	auto id=increment.fetch_add(1);
 	auto timePoint = std::chrono::high_resolution_clock::now() + duration;
@@ -110,7 +110,7 @@ Scheduler::SchedulerUnit Scheduler::addInterval(std::function<void(void)> task, 
 	return Scheduler::SchedulerUnit(this, id);
 }
 
-Scheduler::SchedulerUnit Scheduler::addTimeOutFor(std::function<void(void)> task, std::chrono::nanoseconds duration)
+Scheduler::SchedulerUnit Scheduler::addTimeOutFor(std::function<void(void)> task, const std::chrono::nanoseconds& duration)
 {
 	TaskUnit unit;
 	auto id = increment.fetch_add(1);
@@ -122,7 +122,7 @@ Scheduler::SchedulerUnit Scheduler::addTimeOutFor(std::function<void(void)> task
 	return Scheduler::SchedulerUnit(this, id);
 }
 
-Scheduler::SchedulerUnit Scheduler::addTimeOutUntil(std::function<void(void)> task, std::chrono::time_point<std::chrono::high_resolution_clock> timePoint)
+Scheduler::SchedulerUnit Scheduler::addTimeOutUntil(std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint)
 {
 	TaskUnit unit;
 	auto id = increment.fetch_add(1);
@@ -133,7 +133,7 @@ Scheduler::SchedulerUnit Scheduler::addTimeOutUntil(std::function<void(void)> ta
 	return Scheduler::SchedulerUnit(this, id);
 }
 
-Scheduler::SchedulerUnit::SchedulerUnit(Scheduler* scheduler, uint_fast64_t id)
+Scheduler::SchedulerUnit::SchedulerUnit(Scheduler* scheduler, const uint_fast64_t& id)
 	:scheduler(scheduler), id(id)
 {
 	deleted = false;

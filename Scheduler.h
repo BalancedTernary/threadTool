@@ -22,7 +22,7 @@ public:
 		const uint_fast64_t id;
 		volatile std::atomic<volatile bool> deleted;
 	public:
-		SchedulerUnit(Scheduler*, uint_fast64_t);
+		SchedulerUnit(Scheduler*, const uint_fast64_t&);
 		void deleteUnit();
 	};
 private:
@@ -49,14 +49,14 @@ private:
 
 private:
 	void mainService(const volatile std::atomic<volatile bool>& loopFlag);
-	void add(uint_fast64_t id, std::function<void(void)> task, std::chrono::time_point<std::chrono::high_resolution_clock> timePoint, std::chrono::time_point<std::chrono::high_resolution_clock> nextPoint);
+	void add(const uint_fast64_t& id, std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint, const std::chrono::time_point<std::chrono::high_resolution_clock>& nextPoint);
 public:
 	Scheduler(ThreadPool& threadPool);
 	~Scheduler();
 public:
-	SchedulerUnit addInterval(std::function<void(void)> task, std::chrono::nanoseconds duration);
-	SchedulerUnit addTimeOutFor(std::function<void(void)> task, std::chrono::nanoseconds duration);
-	SchedulerUnit addTimeOutUntil(std::function<void(void)> task, std::chrono::time_point<std::chrono::high_resolution_clock> timePoint);
+	SchedulerUnit addInterval(std::function<void(void)> task, const std::chrono::nanoseconds& duration);
+	SchedulerUnit addTimeOutFor(std::function<void(void)> task, const std::chrono::nanoseconds& duration);
+	SchedulerUnit addTimeOutUntil(std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint);
 
 };
 

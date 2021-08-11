@@ -29,13 +29,13 @@ private:
 	void loopFunction();
 public:
 	_ThreadUnit(std::function<void(void)> onActivate=nullptr, std::function<void(void)> onIdle=nullptr);
-	_ThreadUnit(const std::function < Task(void)>& functionSource, std::function<void(void)> onActivate = nullptr, std::function<void(void)> onIdle = nullptr);
+	_ThreadUnit(std::function < Task(void)> functionSource, std::function<void(void)> onActivate = nullptr, std::function<void(void)> onIdle = nullptr);
 	~_ThreadUnit();
 public:
-	void setFunctionSource(const std::function < Task(void)>& functionSource);
+	void setFunctionSource(std::function < Task(void)> functionSource);
 	void wakeUp();
-	void setOnActivate(const std::function<void(void)>&);
-	void setOnIdle(const std::function<void(void)>&);
+	void setOnActivate(std::function<void(void)>);
+	void setOnIdle(std::function<void(void)>);
 	bool isActivate();
 	
 

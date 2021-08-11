@@ -234,7 +234,7 @@ void ThreadPool::fromIdle()
 	}
 }
 
-void ThreadPool::add(const _ThreadUnit::Task& fun)
+void ThreadPool::add(_ThreadUnit::Task fun)
 {
 	{
 		unique_lock<mutex> m(_mFunctionDeque);

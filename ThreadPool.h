@@ -55,7 +55,7 @@ private:
 	void fromActivate();
 	void fromIdle();
 public:
-	void add(const _ThreadUnit::Task&);
+	void add(_ThreadUnit::Task);
 
 	void setMinimumNumberOfThreads(const uint_fast64_t&);
 	void setMaximumNumberOfThreads(const uint_fast64_t&);

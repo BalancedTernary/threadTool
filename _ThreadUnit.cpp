@@ -11,7 +11,7 @@ _ThreadUnit::_ThreadUnit(std::function<void(void)> onActivate, std::function<voi
 	loop = thread(&_ThreadUnit::loopFunction, this);
 }
 
-_ThreadUnit::_ThreadUnit(const std::function < Task(void)>& functionSource, std::function<void(void)> onActivate, std::function<void(void)> onIdle)
+_ThreadUnit::_ThreadUnit(std::function < Task(void)> functionSource, std::function<void(void)> onActivate, std::function<void(void)> onIdle)
 {
 	_ThreadUnit::onActivate = onActivate;
 	_ThreadUnit::onIdle = onIdle;
@@ -31,7 +31,7 @@ _ThreadUnit::~_ThreadUnit()
 	}
 }
 
-void _ThreadUnit::setFunctionSource(const std::function < Task(void)>& functionSource)
+void _ThreadUnit::setFunctionSource(std::function < Task(void)> functionSource)
 {
 	unique_lock<mutex> m(_mGet);
 	getOneFunction = functionSource;
@@ -113,13 +113,13 @@ void _ThreadUnit::loopFunction()
 	}
 }
 
-void _ThreadUnit::setOnActivate(const std::function<void(void)>& fun)
+void _ThreadUnit::setOnActivate(std::function<void(void)> fun)
 {
 	unique_lock<mutex> m(_mCondition);
 	onActivate = fun;
 }
 
-void _ThreadUnit::setOnIdle(const std::function<void(void)>& fun)
+void _ThreadUnit::setOnIdle(std::function<void(void)> fun)
 {
 	unique_lock<mutex> m(_mCondition);
 	onIdle = fun;

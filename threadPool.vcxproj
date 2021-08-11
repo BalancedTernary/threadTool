@@ -148,7 +148,9 @@
     <ClCompile Include="_ThreadUnit.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Async.h" />
     <ClInclude Include="MineMath.h" />
+    <ClInclude Include="MineMutex.h" />
     <ClInclude Include="Scheduler.h" />
     <ClInclude Include="ThreadPool.h" />
     <ClInclude Include="_ThreadUnit.h" />

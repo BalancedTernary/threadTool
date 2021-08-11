@@ -2,6 +2,8 @@
 #include "ThreadPool.h"
 #include "_ThreadUnit.h"
 #include "Scheduler.h"
+#include "Async.h"
+
 #include <cstdlib>
 #include <string>
 int main()
@@ -24,6 +26,8 @@ int main()
     tp.setMaximumNumberOfThreads(200);
     tp.setMinimumNumberOfThreads(5);
     tp.setRedundancyRatio(1.5);
+    
+
     //std::this_thread::sleep_for(std::chrono::seconds(200));
 
     {
@@ -31,11 +35,17 @@ int main()
         std::condition_variable BlockingQueue;
         std::unique_lock<std::mutex> m(_mCondition);
         ThreadPool tp;
+        tp.setMaximumNumberOfThreads(4);
         Scheduler scheduler(tp);
         scheduler.addTimeOutFor([]() {std::cout << "ccc" << std::endl << std::flush; }, std::chrono::seconds(10));
         auto s = scheduler.addInterval([]() {std::cout << "bbb" << std::endl << std::flush; }, std::chrono::seconds(1));
-        //std::this_thread::sleep_for(std::chrono::seconds(20));
-        BlockingQueue.wait_for(m, std::chrono::seconds(20));
+        auto te = Async<std::string>(tp, [](void)
+            {
+                std::this_thread::sleep_for(std::chrono::seconds(20));
+                return "AsyncEnd";
+            });
+        std::cout << "AsyncStart" << std::endl << std::flush;
+        std::cout << te.get() << std::endl << std::flush;
         auto s2 = scheduler.addInterval([]() {std::cout << "ddd" << std::endl << std::flush; }, std::chrono::milliseconds(500));
         s.deleteUnit();
         BlockingQueue.wait_for(m, std::chrono::seconds(10));

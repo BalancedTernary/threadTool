@@ -1,3 +1,4 @@
+#pragma once
 #ifndef __MINE_MATH__
 #define  __MINE_MATH__
 #include "cmath"
