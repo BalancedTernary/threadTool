@@ -1,6 +1,6 @@
 #include "_ThreadUnit.h"
 using namespace std;
-
+using namespace threadTool;
 _ThreadUnit::_ThreadUnit(std::function<void(void)> onActivate, std::function<void(void)> onIdle)
 {
 	_ThreadUnit::onActivate = onActivate;

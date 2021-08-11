@@ -1,5 +1,6 @@
 #include "Scheduler.h"
 using namespace std;
+using namespace threadTool;
 Scheduler::Scheduler(ThreadPool& threadPool)
 {
 	Scheduler::threadPool = &threadPool;
@@ -31,7 +32,7 @@ void Scheduler::mainService(const volatile std::atomic<volatile bool>& loopFlag)
 			for (auto& deleID : deleDeque)
 			{
 				unique_lock<mutex> m(_mTaskList);
-				taskList.remove_if([&deleID](const TaskUnit& task) {return deleID == task.id; });
+				taskList.remove_if([&deleID](const _TaskUnit& task) {return deleID == task.id; });
 			}
 			deleDeque.clear();
 		}
@@ -55,7 +56,7 @@ void Scheduler::mainService(const volatile std::atomic<volatile bool>& loopFlag)
 							task->timePoint = task->nextPoint;
 							task->nextPoint += duration;
 							nextTime = mineMath::min(nextTime, task->timePoint);
-							std::list<Scheduler::TaskUnit>::iterator subTask = task;
+							std::list<Scheduler::_TaskUnit>::iterator subTask = task;
 							do
 							{
 								if (subTask == taskList.end() || subTask->timePoint > task->timePoint)
@@ -82,7 +83,7 @@ void Scheduler::mainService(const volatile std::atomic<volatile bool>& loopFlag)
 
 void Scheduler::add(const uint_fast64_t& id, std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint, const std::chrono::time_point<std::chrono::high_resolution_clock>& nextPoint)
 {//在调用处加锁，函数内部不加锁
-	TaskUnit unit;
+	_TaskUnit unit;
 	unit.id = id;
 	unit.task = task;
 	unit.timePoint = timePoint;
@@ -99,7 +100,7 @@ void Scheduler::add(const uint_fast64_t& id, std::function<void(void)> task, con
 	} while (true);
 }
 
-Scheduler::SchedulerUnit Scheduler::addInterval(std::function<void(void)> task, const std::chrono::nanoseconds& duration)
+Scheduler::_SchedulerUnit Scheduler::addInterval(std::function<void(void)> task, const std::chrono::nanoseconds& duration)
 {
 	auto id=increment.fetch_add(1);
 	auto timePoint = std::chrono::high_resolution_clock::now() + duration;
@@ -107,39 +108,39 @@ Scheduler::SchedulerUnit Scheduler::addInterval(std::function<void(void)> task, 
 	unique_lock<mutex> m(_mTaskList);
 	add(id, task, timePoint, nextPoint);
 	BlockingQueue.notify_one();
-	return Scheduler::SchedulerUnit(this, id);
+	return Scheduler::_SchedulerUnit(this, id);
 }
 
-Scheduler::SchedulerUnit Scheduler::addTimeOutFor(std::function<void(void)> task, const std::chrono::nanoseconds& duration)
+Scheduler::_SchedulerUnit Scheduler::addTimeOutFor(std::function<void(void)> task, const std::chrono::nanoseconds& duration)
 {
-	TaskUnit unit;
+	_TaskUnit unit;
 	auto id = increment.fetch_add(1);
 	auto timePoint = std::chrono::high_resolution_clock::now() + duration;
 	auto nextPoint = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
 	unique_lock<mutex> m(_mTaskList);
 	add(id, task, timePoint, nextPoint);
 	BlockingQueue.notify_one();
-	return Scheduler::SchedulerUnit(this, id);
+	return Scheduler::_SchedulerUnit(this, id);
 }
 
-Scheduler::SchedulerUnit Scheduler::addTimeOutUntil(std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint)
+Scheduler::_SchedulerUnit Scheduler::addTimeOutUntil(std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint)
 {
-	TaskUnit unit;
+	_TaskUnit unit;
 	auto id = increment.fetch_add(1);
 	auto nextPoint = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
 	unique_lock<mutex> m(_mTaskList);
 	add(id, task, timePoint, nextPoint);
 	BlockingQueue.notify_one();
-	return Scheduler::SchedulerUnit(this, id);
+	return Scheduler::_SchedulerUnit(this, id);
 }
 
-Scheduler::SchedulerUnit::SchedulerUnit(Scheduler* scheduler, const uint_fast64_t& id)
+Scheduler::_SchedulerUnit::_SchedulerUnit(Scheduler* scheduler, const uint_fast64_t& id)
 	:scheduler(scheduler), id(id)
 {
 	deleted = false;
 }
 
-void Scheduler::SchedulerUnit::deleteUnit()
+void Scheduler::_SchedulerUnit::deleteUnit()
 {
 	if (!deleted)
 	{

@@ -6,6 +6,7 @@
 
 #include <cstdlib>
 #include <string>
+using namespace threadTool;
 int main()
 {
     /*volatile std::atomic<int_least64_t> waitFlag;

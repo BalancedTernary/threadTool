@@ -1,7 +1,7 @@
 ﻿#include "ThreadPool.h"
 //#include <iostream>
 using namespace std;
-
+using namespace threadTool;
 ThreadPool::ThreadPool()
 {
 	//funSrc = [this]() {return functionSource(); };
