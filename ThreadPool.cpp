@@ -4,13 +4,22 @@ using namespace std;
 
 ThreadPool::ThreadPool()
 {
-	funSrc = [this]() {return functionSource(); };
-	fromAct = [this]() {return fromActivate(); };
-	fromIdl = [this]() {return fromIdle(); };
+	//funSrc = [this]() {return functionSource(); };
+	//fromAct = [this]() {return fromActivate(); };
+	//fromIdl = [this]() {return fromIdle(); };
+	funSrc = std::bind(&ThreadPool::functionSource, this);
+	fromAct = std::bind(&ThreadPool::fromActivate, this);
+	fromIdl = std::bind(&ThreadPool::fromIdle, this);
 	idleStartTime = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
 	numberOfThreads = 0;
 	numberOfIdles = 0;
 	wakeUpLength = 0;
+
+
+	redundancyRatio = 1;
+	idleLife = std::chrono::nanoseconds(0);
+	minimumNumberOfThreads = 0;
+	maximumNumberOfThreads = 1;
 
 	loopFlag = true;
 	serviceLoop= thread(&ThreadPool::mainService, this);
@@ -54,17 +63,21 @@ void ThreadPool::mainService()
 			--wakeUpLength;
 			{
 				unique_lock<mutex> m(_mThreadDeque);
-				auto unit = threadDeque.end();
-				do
+				if (threadDeque.size() > 0)
 				{
-					--unit;
-					if (!unit->isActivate())
-					{
-						unit->wakeUp();
-						break;
-					}
-				} while (unit != threadDeque.begin());
 
+					auto unit = threadDeque.end();
+					do
+					{
+						--unit;
+						if (!unit->isActivate())
+						{
+							unit->wakeUp();
+							break;
+						}
+					} while (unit != threadDeque.begin());
+
+				}
 			}
 			size_t dequeLength;
 			{
@@ -132,26 +145,36 @@ void ThreadPool::mainService()
 					idleStartTime = chrono::high_resolution_clock::now();
 				}
 			}
+			BlockingQueue.wait_until(m, mineMath::min<std::chrono::time_point<std::chrono::high_resolution_clock>, std::chrono::time_point<std::chrono::high_resolution_clock>>(chrono::high_resolution_clock::now() + idleLife, time));
 
 		}
-		
-		BlockingQueue.wait_until(m, mineMath::min(chrono::high_resolution_clock::now(), time) + idleLife);
+		else
+		{
+			BlockingQueue.wait(m);
+
+		}
+		////增加：在适当时候永久休眠等待唤醒以节约性能
+		//BlockingQueue.wait_until(m, mineMath::min<std::chrono::time_point<std::chrono::high_resolution_clock>, std::chrono::time_point<std::chrono::high_resolution_clock>>(chrono::high_resolution_clock::now() + idleLife, time));		
 	}
 }
 
-std::function<void(void)> ThreadPool::functionSource()
+_ThreadUnit::Task ThreadPool::functionSource()
 {
-	unique_lock<mutex> m(_mFunctionDeque);
-	if (functionDeque.size() > 0)
+	_ThreadUnit::Task fun;
 	{
-		std::function<void(void)> fun = functionDeque.front();
-		functionDeque.pop_front();
-		return fun;
+		unique_lock<mutex> m(_mFunctionDeque);
+		if (functionDeque.size() > 0)
+		{
+			fun = functionDeque.front();
+			functionDeque.pop_front();
+		}
+		else
+		{
+			fun = nullptr;
+		}
 	}
-	else
-	{
-		return nullptr;
-	}
+	BlockingDeleting.notify_all();
+	return fun;
 }
 
 void ThreadPool::fromActivate()
@@ -211,7 +234,7 @@ void ThreadPool::fromIdle()
 	}
 }
 
-void ThreadPool::add(const std::function<void(void)>& fun)
+void ThreadPool::add(const _ThreadUnit::Task& fun)
 {
 	{
 		unique_lock<mutex> m(_mFunctionDeque);
@@ -222,7 +245,7 @@ void ThreadPool::add(const std::function<void(void)>& fun)
 	BlockingQueue.notify_one();
 }
 
-void ThreadPool::setMinimumNumberOfThreads(const uint_least64_t& in)
+void ThreadPool::setMinimumNumberOfThreads(const uint_fast64_t& in)
 {
 	minimumNumberOfThreads = in;
 	unique_lock<mutex> m(_mThreadDeque);
@@ -235,7 +258,7 @@ void ThreadPool::setMinimumNumberOfThreads(const uint_least64_t& in)
 
 }
 
-void ThreadPool::setMaximumNumberOfThreads(const uint_least64_t& in)
+void ThreadPool::setMaximumNumberOfThreads(const uint_fast64_t& in)
 {
 	maximumNumberOfThreads = in;
 }
@@ -250,12 +273,12 @@ void ThreadPool::setRedundancyRatio(const double& in)
 	redundancyRatio = in;
 }
 
-uint_least64_t ThreadPool::getMinimumNumberOfThreads()
+uint_fast64_t ThreadPool::getMinimumNumberOfThreads()
 {
 	return minimumNumberOfThreads;
 }
 
-uint_least64_t ThreadPool::getMaximumNumberOfThreads()
+uint_fast64_t ThreadPool::getMaximumNumberOfThreads()
 {
 	return maximumNumberOfThreads;
 }

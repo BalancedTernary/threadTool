@@ -7,8 +7,12 @@
 #include <atomic>
 #include <condition_variable>
 #include <chrono>
-class ThreadUnit
+#include <variant>
+
+class _ThreadUnit
 {
+public:
+	typedef std::variant<nullptr_t, std::function<void(void)>, std::function<void(const volatile std::atomic<volatile bool>&)>> Task;
 private:
 	std::thread loop;
 	std::mutex _mCondition;//条件变量锁
@@ -16,7 +20,7 @@ private:
 	//std::mutex _mActivate;//
 	std::condition_variable BlockingQueue;
 	volatile std::atomic<volatile bool> loopFlag;
-	std::function < std::function<void(void)>(void)> getOneFunction;
+	std::function < Task(void)> getOneFunction;
 	std::function<void(void)> onActivate;
 	std::function<void(void)> onIdle;
 	volatile std::atomic<volatile bool> activate;
@@ -24,11 +28,11 @@ private:
 private:
 	void loopFunction();
 public:
-	ThreadUnit(std::function<void(void)> onActivate=nullptr, std::function<void(void)> onIdle=nullptr);
-	ThreadUnit(const std::function < std::function<void(void)>(void)>& functionSource, std::function<void(void)> onActivate = nullptr, std::function<void(void)> onIdle = nullptr);
-	~ThreadUnit();
+	_ThreadUnit(std::function<void(void)> onActivate=nullptr, std::function<void(void)> onIdle=nullptr);
+	_ThreadUnit(const std::function < Task(void)>& functionSource, std::function<void(void)> onActivate = nullptr, std::function<void(void)> onIdle = nullptr);
+	~_ThreadUnit();
 public:
-	void setFunctionSource(const std::function < std::function<void(void)>(void)>& functionSource);
+	void setFunctionSource(const std::function < Task(void)>& functionSource);
 	void wakeUp();
 	void setOnActivate(const std::function<void(void)>&);
 	void setOnIdle(const std::function<void(void)>&);

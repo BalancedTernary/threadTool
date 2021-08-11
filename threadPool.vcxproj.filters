@@ -24,6 +24,9 @@
     <ClCompile Include="_ThreadUnit.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Scheduler.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ThreadPool.h">
@@ -33,6 +36,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="MineMath.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Scheduler.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,27 +1,27 @@
 #include "_ThreadUnit.h"
 using namespace std;
 
-ThreadUnit::ThreadUnit(std::function<void(void)> onActivate, std::function<void(void)> onIdle)
+_ThreadUnit::_ThreadUnit(std::function<void(void)> onActivate, std::function<void(void)> onIdle)
 {
-	ThreadUnit::onActivate = onActivate;
-	ThreadUnit::onIdle = onIdle;
+	_ThreadUnit::onActivate = onActivate;
+	_ThreadUnit::onIdle = onIdle;
 	getOneFunction = nullptr;
 	activate = false;
 	loopFlag = true;
-	loop = thread(&ThreadUnit::loopFunction, this);
+	loop = thread(&_ThreadUnit::loopFunction, this);
 }
 
-ThreadUnit::ThreadUnit(const std::function < std::function<void(void)>(void)>& functionSource, std::function<void(void)> onActivate, std::function<void(void)> onIdle)
+_ThreadUnit::_ThreadUnit(const std::function < Task(void)>& functionSource, std::function<void(void)> onActivate, std::function<void(void)> onIdle)
 {
-	ThreadUnit::onActivate = onActivate;
-	ThreadUnit::onIdle = onIdle;
+	_ThreadUnit::onActivate = onActivate;
+	_ThreadUnit::onIdle = onIdle;
 	getOneFunction = functionSource;
 	activate = false;
 	loopFlag = true;
-	loop = thread(&ThreadUnit::loopFunction, this);
+	loop = thread(&_ThreadUnit::loopFunction, this);
 }
 
-ThreadUnit::~ThreadUnit()
+_ThreadUnit::~_ThreadUnit()
 {
 	loopFlag = false;
 	BlockingQueue.notify_all();
@@ -31,25 +31,25 @@ ThreadUnit::~ThreadUnit()
 	}
 }
 
-void ThreadUnit::setFunctionSource(const std::function < std::function<void(void)>(void)>& functionSource)
+void _ThreadUnit::setFunctionSource(const std::function < Task(void)>& functionSource)
 {
 	unique_lock<mutex> m(_mGet);
 	getOneFunction = functionSource;
 }
 
-void ThreadUnit::wakeUp()
+void _ThreadUnit::wakeUp()
 {
 	unique_lock<mutex> m(_mCondition);
 	BlockingQueue.notify_one();
 }
 
-void ThreadUnit::loopFunction()
+void _ThreadUnit::loopFunction()
 {
 	try {
 		while (loopFlag)
 		{
 			//unique_lock<mutex> m(_mCondition);
-			std::function<void(void)> function;
+			Task function;
 			{
 				unique_lock<mutex> m(_mGet);
 				if (getOneFunction != nullptr)
@@ -61,7 +61,7 @@ void ThreadUnit::loopFunction()
 					function = nullptr;
 				}
 			}
-			if (function != nullptr)
+			if (function.index() > 0)
 			{
 				//idleStartTime = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
 				//unique_lock<mutex> m(_mActivate);
@@ -77,7 +77,17 @@ void ThreadUnit::loopFunction()
 						}
 					}
 				}
-				function();
+				switch (function.index())
+				{
+				case 1:
+					std::get<std::function<void(void)>>(function)();
+					break;
+				case 2:
+					std::get<std::function<void(const volatile std::atomic<volatile bool>&)>>(function)(loopFlag);
+					break;
+				default:
+					break;
+				}
 			}
 			else
 			{
@@ -103,19 +113,19 @@ void ThreadUnit::loopFunction()
 	}
 }
 
-void ThreadUnit::setOnActivate(const std::function<void(void)>& fun)
+void _ThreadUnit::setOnActivate(const std::function<void(void)>& fun)
 {
 	unique_lock<mutex> m(_mCondition);
 	onActivate = fun;
 }
 
-void ThreadUnit::setOnIdle(const std::function<void(void)>& fun)
+void _ThreadUnit::setOnIdle(const std::function<void(void)>& fun)
 {
 	unique_lock<mutex> m(_mCondition);
 	onIdle = fun;
 }
 
-bool ThreadUnit::isActivate()
+bool _ThreadUnit::isActivate()
 {
 	unique_lock<mutex> m(_mCondition);
 	return activate;
