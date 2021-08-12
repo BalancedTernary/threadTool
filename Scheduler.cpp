@@ -53,8 +53,19 @@ void Scheduler::mainService(const volatile std::atomic<volatile bool>& loopFlag)
 						if (task->nextPoint != std::chrono::time_point<std::chrono::high_resolution_clock>::max())
 						{
 							std::chrono::nanoseconds duration = task->nextPoint - task->timePoint;
+							
 							task->timePoint = task->nextPoint;
 							task->nextPoint += duration;
+							/*//这段代码不起作用，因为任务线程阻塞无法影响任务发送的时间
+							auto timeOut = multMath::max(duration, task->timePoint - std::chrono::high_resolution_clock::now());
+							auto realDuration = duration * (duration / timeOut);
+							if ((duration / timeOut) < 1)
+							{
+								std::cerr << "sssssssssssssss" << endl << flush;
+							}
+							task->timePoint = std::chrono::high_resolution_clock::now() + realDuration;
+							task->nextPoint = task->timePoint + duration;
+							*/
 							nextTime = multMath::min(nextTime, task->timePoint);
 							std::list<Scheduler::_TaskUnit>::iterator subTask = task;
 							do

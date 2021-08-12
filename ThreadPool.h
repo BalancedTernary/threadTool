@@ -10,6 +10,7 @@
 #include <list>
 #include <chrono>
 #include <variant>
+#include <iostream>
 #include "multMath.h"
 #include "_ThreadUnit.h"
 

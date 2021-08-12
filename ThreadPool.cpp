@@ -98,6 +98,10 @@ void ThreadPool::mainService()
 				++numberOfThreads;
 				++numberOfIdles;
 			}
+			if (numberOfIdles <= 0)
+			{
+				break;
+			}
 		}
 		
 		size_t dequeLength;
@@ -270,6 +274,10 @@ void ThreadPool::setIdleLife(const std::chrono::nanoseconds& in)
 
 void ThreadPool::setRedundancyRatio(const double& in)
 {
+	if (in < 1)
+	{
+		cerr << "'redundancyRatio' should not be less than 1." << endl << flush;
+	}
 	redundancyRatio = in;
 }
 
