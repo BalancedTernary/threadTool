@@ -1,4 +1,4 @@
-命名空间threadTool中主要包含了三大工具
+命名空间threadTool中主要包含了三大工具(需要C++17)
 1.ThreadPool类
 2.Scheduler类
 3.Async类
