@@ -53,7 +53,7 @@ int main()
         BlockingQueue.wait_for(m, std::chrono::seconds(10));
         s2.deleteUnit();
         BlockingQueue.wait_for(m, std::chrono::seconds(10));
-
+        
     }
     long long t = 1000;
     while (t-- > 0)

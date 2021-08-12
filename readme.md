@@ -35,3 +35,26 @@
     使用join函数可显式等待线程池任务全部完成
 
     线程池析构时会等待其内部全部任务执行完成
+
+
+2.Scheduler类：
+    一个定时任务发放器，可以在指定时刻、指定时间后或周期性的将指定任务加入到线程池，
+    构造时需传入一个线程池，此类的每个对象将在对应的线程池中设置一个常驻的服务线程，用于任务发放。
+    请确保线程池线程数足够.
+
+    _SchedulerUnit addInterval(std::function<void(void)> task, const std::chrono::nanoseconds& duration);
+        //函数用于设定周期性任务
+
+	_SchedulerUnit addTimeOutFor(std::function<void(void)> task, const std::chrono::nanoseconds& duration);
+        //用于设定在一段时间后发放的任务
+
+	_SchedulerUnit addTimeOutUntil(std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint);
+        //用于设定在指定时间点发放的任务
+
+    设定任务后返回一个_SchedulerUnit对象，可通过调用此对象的deleteUnit方法删除该任务。
+
+3.Async类：
+    可以方便的在线程池中添加简单的异步任务。构造时传入线程池和函数，构造后任务自动开始执行。
+    可以通过check()函数检查任务是否执行完成，返回True则任务已执行完成。
+    可以通过get()函数获取任务函数的返回值，如果调用时函数未执行完毕则阻塞。
+    可以通过reRun()函数重新执行任务。

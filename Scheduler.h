@@ -17,7 +17,7 @@ namespace threadTool
 {
 	class Scheduler
 	{
-	public:
+	private:
 		static class _SchedulerUnit
 		{
 		private:

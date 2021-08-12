@@ -26,7 +26,7 @@ namespace threadTool
 			_m.lock();
 			threadPool.add([this](void) {
 				buffer = this->function();
-				_m.unlock();
+				_m.try_unlock();
 				return; });
 		}
 
@@ -38,7 +38,7 @@ namespace threadTool
 		void reRun()
 		{
 			_m.lock();
-			threadPool.add([this]() {buffer = function(); _m.unlock(); });
+			threadPool.add([this]() {buffer = function(); _m.try_unlock(); });
 		}
 
 		_Tp get()
