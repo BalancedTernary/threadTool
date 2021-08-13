@@ -18,8 +18,8 @@ Scheduler::Scheduler(ThreadPool& threadPool)
 
 Scheduler::~Scheduler()
 {
-	workFlag = false;
 	unique_lock<mutex> m(_mTaskList);
+	workFlag = false;
 	BlockingQueue.notify_all();
 }
 
@@ -41,7 +41,9 @@ void Scheduler::mainService(const volatile std::atomic<volatile bool>& loopFlag)
 			unique_lock<mutex> m(_mTaskList);
 			if (taskList.size() <= 0)
 			{
-				BlockingQueue.wait(m);
+				workFlag = false;
+				return;
+				//BlockingQueue.wait(m);
 			}
 			else
 			{
@@ -94,6 +96,17 @@ void Scheduler::mainService(const volatile std::atomic<volatile bool>& loopFlag)
 
 void Scheduler::add(const uint_fast64_t& id, std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint, const std::chrono::time_point<std::chrono::high_resolution_clock>& nextPoint)
 {//在调用处加锁，函数内部不加锁
+	if (!workFlag)
+	{
+		workFlag = true;
+		auto n = threadPool->getMaximumNumberOfThreads();
+		if (n < 2)
+		{
+			cerr << "The maximum number of threads in the thread pool is at least 2, It is currently " << n << ", And it will be automatically set to 2." << endl << flush;
+			threadPool->setMaximumNumberOfThreads(2);
+		}
+		threadPool->add([this](const volatile std::atomic<volatile bool>& loopFlag) {return mainService(loopFlag); });
+	}
 	_TaskUnit unit;
 	unit.id = id;
 	unit.task = task;

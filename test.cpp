@@ -53,7 +53,11 @@ int main()
         BlockingQueue.wait_for(m, std::chrono::seconds(10));
         s2.deleteUnit();
         BlockingQueue.wait_for(m, std::chrono::seconds(10));
-        
+        s3.deleteUnit();
+        //BlockingQueue.wait_for(m, std::chrono::seconds(10));
+        auto s4 = scheduler.addInterval([]() {std::cout << "fff" << std::endl << std::flush; }, std::chrono::milliseconds(500));
+        //BlockingQueue.wait_for(m, std::chrono::seconds(10));
+
     }
     long long t = 1000;
     while (t-- > 0)
