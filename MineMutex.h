@@ -46,7 +46,7 @@ namespace threadTool
 			writing = true;
 			return true;
 		}
-		template <class _Clock, class _Duration>
+		template <typename _Clock, typename _Duration>
 		bool try_lock_write_until(const std::chrono::time_point<_Clock, _Duration>& _Abs_time)
 		{
 			std::unique_lock<std::mutex> m(_M);
@@ -60,7 +60,7 @@ namespace threadTool
 			writing = true;
 			return true;
 		}
-		template <class _Rep, class _Period>
+		template <typename _Rep, typename _Period>
 		bool try_lock_write_for(const std::chrono::duration<_Rep, _Period>& _Rel_time)
 		{
 			return try_lock_write_until(std::chrono::steady_clock::now() + _Rel_time);
@@ -112,7 +112,7 @@ namespace threadTool
 			BlockingQueue.notify_one();
 			return true;
 		}
-		template <class _Clock, class _Duration>
+		template <typename _Clock, typename _Duration>
 		bool try_lock_read_until(const std::chrono::time_point<_Clock, _Duration>& _Abs_time)
 		{
 			{
@@ -129,7 +129,7 @@ namespace threadTool
 			BlockingQueue.notify_one();
 			return true;
 		}
-		template <class _Rep, class _Period>
+		template <typename _Rep, typename _Period>
 		bool try_lock_read_for(const std::chrono::duration<_Rep, _Period>& _Rel_time)
 		{
 			return try_lock_read_until(std::chrono::steady_clock::now() + _Rel_time);
@@ -170,12 +170,12 @@ namespace threadTool
 		{
 			return try_lock_write();
 		}
-		template <class _Rep, class _Period>
+		template <typename _Rep, typename _Period>
 		bool try_lock_for(const std::chrono::duration<_Rep, _Period>& _Rel_time)
 		{
 			return try_lock_write_for(_Rel_time);
 		}
-		template <class _Clock, class _Duration>
+		template <typename _Clock, typename _Duration>
 		bool try_lock_until(const std::chrono::time_point<_Clock, _Duration>& _Abs_time)
 		{
 			return try_lock_write_until(_Abs_time);
@@ -199,12 +199,12 @@ namespace threadTool
 		{
 			return try_lock_read();
 		}
-		template <class _Rep, class _Period>
+		template <typename _Rep, typename _Period>
 		bool try_lock_shared_for(const std::chrono::duration<_Rep, _Period>& _Rel_time)
 		{
 			return try_lock_read_for(_Rel_time);
 		}
-		template <class _Clock, class _Duration>
+		template <typename _Clock, typename _Duration>
 		bool try_lock_shared_until(const std::chrono::time_point<_Clock, _Duration>& _Abs_time)
 		{
 			return try_lock_read_until(_Abs_time);
@@ -216,6 +216,52 @@ namespace threadTool
 		bool try_unlock_shared()
 		{
 			return try_unlock_read();
+		}
+	};
+
+	template <typename _Mutex>
+	class unique_writeLock
+	{
+	private:
+		_Mutex& m;
+	public:
+		unique_writeLock(const unique_writeLock&) = delete;
+		unique_writeLock& operator=(const unique_writeLock&) = delete;
+		unique_writeLock(_Mutex& m)
+			:m(m)
+		{
+			m.lock_write();
+		}
+		~unique_writeLock()
+		{
+			m.unlock_write();
+		}
+		_Mutex* operator->()
+		{
+			return &m;
+		}
+	};
+
+	template <typename _Mutex>
+	class unique_readLock
+	{
+	private:
+		_Mutex& m;
+	public:
+		unique_readLock(const unique_readLock&) = delete;
+		unique_readLock& operator=(const unique_readLock&) = delete;
+		unique_readLock(_Mutex& m)
+			:m(m)
+		{
+			m.lock_read();
+		}
+		~unique_readLock()
+		{
+			m.unlock_read();
+		}
+		_Mutex* operator->()
+		{
+			return &m;
 		}
 	};
 
