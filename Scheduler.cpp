@@ -18,9 +18,13 @@ Scheduler::Scheduler(ThreadPool& threadPool)
 
 Scheduler::~Scheduler()
 {
-	unique_lock<mutex> m(_mTaskList);
-	workFlag = false;
-	BlockingQueue.notify_all();
+	//_mTaskList.lock();
+	{
+		unique_lock<mutex> m(_mTaskList);
+		workFlag = false;
+		BlockingQueue.notify_all();
+	}
+	//_mTaskList.unlock();
 }
 
 void Scheduler::mainService(const volatile std::atomic<volatile bool>& loopFlag)
