@@ -19,7 +19,7 @@ ThreadPool::ThreadPool()
 	redundancyRatio = 1;
 	idleLife = std::chrono::nanoseconds(0);
 	minimumNumberOfThreads = 0;
-	maximumNumberOfThreads = 1;
+	maximumNumberOfThreads = 2;
 
 	loopFlag = true;
 	serviceLoop= thread(&ThreadPool::mainService, this);
@@ -29,12 +29,14 @@ ThreadPool::~ThreadPool()
 {
 	{
 		unique_lock<mutex> m(_mCondition);
+		loopFlag = false;
 		BlockingDeleting.wait(m, [this]()
 			{
+				//BlockingQueue.notify_all();
 				unique_lock<mutex> m(_mFunctionDeque);
 				return functionDeque.size() <= 0;
 			});
-		loopFlag = false;
+		//loopFlag = false;
 		BlockingQueue.notify_all();
 	}
 	if (serviceLoop.joinable())
@@ -56,8 +58,10 @@ void ThreadPool::join()
 
 void ThreadPool::mainService()
 {
-	while (loopFlag)
+	_mFunctionDeque.lock();
+	while (loopFlag || functionDeque.size()>0)
 	{
+		_mFunctionDeque.unlock();
 		while (wakeUpLength > 0)
 		{
 			//--wakeUpLength;
@@ -158,7 +162,9 @@ void ThreadPool::mainService()
 		}
 		////增加：在适当时候永久休眠等待唤醒以节约性能
 		//BlockingQueue.wait_until(m, multMath::min<std::chrono::time_point<std::chrono::high_resolution_clock>, std::chrono::time_point<std::chrono::high_resolution_clock>>(chrono::high_resolution_clock::now() + idleLife, time));		
+		_mFunctionDeque.lock();
 	}
+	_mFunctionDeque.unlock();
 }
 
 _ThreadUnit::Task ThreadPool::functionSource()

@@ -45,7 +45,11 @@ int main()
         //tp2.setMaximumNumberOfThreads(8);
         //tp2.setMinimumNumberOfThreads(4);
         //tp2.setRedundancyRatio(1.5);
-        tp2.add([](const volatile std::atomic<volatile bool>& tag) {while (tag)std::cout<<"aaa" << std::endl << std::flush; });
+        tp2.add([](const volatile std::atomic<volatile bool>& tag) {while (tag)std::cout << "aaa" << std::endl << std::flush; });
+        //tp2.add([](const volatile std::atomic<volatile bool>& tag) {while (tag)std::cout << "bbb" << std::endl << std::flush; });
+        tp2.add([](const volatile std::atomic<volatile bool>& tag) {while (tag)std::cout<<"ccc" << std::endl << std::flush; });
+        //std::this_thread::sleep_for(std::chrono::seconds(1));
+
     }
 
     ThreadPool tp;
