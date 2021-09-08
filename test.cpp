@@ -6,12 +6,38 @@
 
 #include <cstdlib>
 #include <string>
+#include <thread>
 using namespace threadTool;
 int main()
 {
     /*volatile std::atomic<int_least64_t> waitFlag;
     std::condition_variable BlockingQueue;
     std::mutex _mCondition;//条件变量锁*/
+    {
+        Mutex m{true};
+        unique_readLock s4(m);
+        unique_readLock s5(m);
+        unique_writeLock s1(m);
+        unique_readLock s2(m);
+        unique_writeLock s3(m);
+    }
+    {
+        Mutex m{ true };
+        m.lock_write();
+        m.lock_read();
+        m.unlock_write();
+        std::thread t1([&m]() {
+            m.lock_read();
+            std::cout << "m.lock_read()" << std::endl;
+            std::cout << std::flush;
+            /*m.lock_write();
+            std::cout << "m.lock_write()" << std::endl;
+            std::cout << std::flush;*/
+            });
+        t1.join();
+    }
+
+
     std::cout << "Hello World!\n";
     {
         ThreadPool tp2;

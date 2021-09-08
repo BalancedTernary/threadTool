@@ -7,34 +7,77 @@
 #include <condition_variable>
 #include <atomic>
 #include <map>
+#include <set>
 #include <limits>
 #include <functional>
 #include <chrono>
+#include <sstream>
 namespace threadTool
 {
+	//template<bool _RECUR = false>
 	class Mutex
 	{
 	private:
 		std::mutex _M;
+		const bool _RECUR = false;//是否允许同一线程递归加解锁
 		std::condition_variable BlockingQueue;//阻塞队列
-		volatile std::atomic<bool> writing;//当正在写时为true
-		volatile std::atomic<unsigned long long> readingTimes;//正在读的数目
+		std::multiset<uint_fast64_t> readers; //当正在写时为所有者thread_id，否则为0
+		volatile std::atomic<uint_fast64_t> writer; //当正在写时为所有者thread_id，否则为0
+		volatile std::atomic<int_fast64_t> writingTimes;//正在写的数目（同一线程可多次获取锁）
+		volatile std::atomic<int_fast64_t> readingTimes;//正在读的数目
 	public:
-		const std::function<bool(void)> _AllowRead = [this]() {return !(writing || (readingTimes >= ULONG_MAX)); };//判断是否允许读
-		const std::function<bool(void)> _AllowWrite = [this]() {return !(writing || readingTimes); };//判断是否允许写
+		const std::function<bool(void)> _AllowRead = [this]() {return (!(writingTimes > 0 || (readingTimes >= ULONG_MAX))) || (_RECUR && (writer == getThreadID() || (writer == 0 && readers.size() <= readers.count(getThreadID())))); };//判断是否允许读
+		const std::function<bool(void)> _AllowWrite = [this]() {return (!(writingTimes >0 || readingTimes>0)) || (_RECUR && (writer == getThreadID() || (writer == 0 && readers.size() <= readers.count(getThreadID())))); };//判断是否允许写
+	private:
+		void _onWrite()//仅在加锁函数内调用，所以不加锁
+		{
+			++writingTimes;
+			writer = getThreadID();
+		}
+		void _onRead()//仅在加锁函数内调用，所以不加锁
+		{
+			++readingTimes;
+			readers.insert(getThreadID());
+		}
+		void _unWrite()//仅在加锁函数内调用，所以不加锁
+		{
+			--writingTimes;
+			if (writingTimes <= 0)
+			{
+				writer = 0;
+			}
+		}
+		void _unRead()//仅在加锁函数内调用，所以不加锁
+		{
+			--readingTimes;
+			readers.erase(readers.find(getThreadID()));//不能直接使用readers.erase(getThreadID())，因为会删掉值相同的全部元素
+			if (readingTimes != readers.size())
+			{
+				std::_Throw_Cpp_error(1);
+			}
+		}
 	public:
 		Mutex(const Mutex&) = delete;
 		Mutex& operator=(const Mutex&) = delete;
-		Mutex()
+		Mutex(bool _RECUR = false)
+			:_RECUR(_RECUR)
 		{
-			writing = false;
+			writingTimes = 0;
 			readingTimes = 0;
+		}
+		static uint_fast64_t getThreadID()
+		{
+			std::stringstream s("");
+			s << std::this_thread::get_id();
+			uint_fast64_t id;
+			s >> id;
+			return id;
 		}
 		void lock_write()
 		{
 			std::unique_lock<std::mutex> m(_M);
 			BlockingQueue.wait(m, _AllowWrite);//自动解锁和加锁m，_AllowWrite为false时才能阻塞，为true时才能解除阻塞
-			writing = true;
+			_onWrite();
 		}
 		bool try_lock_write()
 		{
@@ -43,7 +86,7 @@ namespace threadTool
 			{
 				return false;
 			}
-			writing = true;
+			_onWrite();
 			return true;
 		}
 		template <typename _Clock, typename _Duration>
@@ -57,7 +100,7 @@ namespace threadTool
 					return false;
 				}
 			}
-			writing = true;
+			_onWrite();
 			return true;
 		}
 		template <typename _Rep, typename _Period>
@@ -69,11 +112,11 @@ namespace threadTool
 		{
 			{
 				std::unique_lock<std::mutex> m(_M);
-				if (writing != true)
+				if (writingTimes <= 0)
 				{
 					std::_Throw_Cpp_error(1);
 				}
-				writing = false;
+				_unWrite();
 			}
 			BlockingQueue.notify_one();
 		}
@@ -81,11 +124,11 @@ namespace threadTool
 		{
 			{
 				std::unique_lock<std::mutex> m(_M);
-				if (writing != true)
+				if (writingTimes <= 0)
 				{
 					return false;
 				}
-				writing = false;
+				_unWrite();
 			}
 			BlockingQueue.notify_one();
 			return true;
@@ -95,7 +138,7 @@ namespace threadTool
 			{
 				std::unique_lock<std::mutex> m(_M);
 				BlockingQueue.wait(m, _AllowRead);//自动解锁和加锁m，_AllowWrite为false时才能阻塞，为true时才能解除阻塞
-				++readingTimes;
+				_onRead();
 			}
 			BlockingQueue.notify_one();
 		}
@@ -107,7 +150,7 @@ namespace threadTool
 				{
 					return false;
 				}
-				++readingTimes;
+				_onRead();
 			}
 			BlockingQueue.notify_one();
 			return true;
@@ -124,7 +167,7 @@ namespace threadTool
 						return false;
 					}
 				}
-				++readingTimes;
+				_onRead();
 			}
 			BlockingQueue.notify_one();
 			return true;
@@ -142,7 +185,7 @@ namespace threadTool
 				{
 					std::_Throw_Cpp_error(1);
 				}
-				--readingTimes;
+				_unRead();
 			}
 			BlockingQueue.notify_one();
 		}
@@ -154,13 +197,11 @@ namespace threadTool
 				{
 					return false;
 				}
-				--readingTimes;
+				_unRead();
 			}
 			BlockingQueue.notify_one();
 			return true;
 		}
-
-
 
 		void lock()
 		{
