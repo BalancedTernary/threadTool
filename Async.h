@@ -43,7 +43,7 @@ namespace threadTool
 
 		_Tp get()
 		{
-			std::unique_lock<Mutex> m{ _m };
+			unique_readLock m{ _m };
 			return buffer;
 		}
 
