@@ -47,6 +47,9 @@
     <ClInclude Include="MineMutex.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Atomic.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="readme.md" />

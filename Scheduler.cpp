@@ -2,17 +2,20 @@
 using namespace std;
 using namespace threadTool;
 Scheduler::Scheduler(ThreadPool& threadPool)
+	:mainAsync(Async<int>(threadPool, [this](AtomicConstReference<bool> loopFlag) {mainService(loopFlag); return 0; }))
 {
 	Scheduler::threadPool = &threadPool;
 	increment = 0;
 	workFlag = true;
+	//deleted = false;
 	auto n = threadPool.getMaximumNumberOfThreads();
 	if (n < 2)
 	{
 		cerr << "The maximum number of threads in the thread pool is at least 2, It is currently " << n << ", And it will be automatically set to 2."<< endl << flush;
 		threadPool.setMaximumNumberOfThreads(2);
 	}
-	threadPool.add([this](const volatile std::atomic<volatile bool>& loopFlag) {return mainService(loopFlag); });
+	//mainAsync = Async<void>(threadPool, [this](AtomicConstReference<bool> loopFlag) {return mainService(loopFlag); });
+	//threadPool.add([this](AtomicConstReference<bool> loopFlag) {return mainService(loopFlag); });
 
 }
 
@@ -25,9 +28,10 @@ Scheduler::~Scheduler()
 		BlockingQueue.notify_all();
 	}
 	//_mTaskList.unlock();
+	mainAsync.get();
 }
 
-void Scheduler::mainService(const volatile std::atomic<volatile bool>& loopFlag)
+void Scheduler::mainService(AtomicConstReference<bool> loopFlag)
 {
 	do
 	{
@@ -96,6 +100,7 @@ void Scheduler::mainService(const volatile std::atomic<volatile bool>& loopFlag)
 			}
 		}
 	} while (workFlag && loopFlag);
+
 }
 
 void Scheduler::add(const uint_fast64_t& id, std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint, const std::chrono::time_point<std::chrono::high_resolution_clock>& nextPoint)
@@ -109,7 +114,7 @@ void Scheduler::add(const uint_fast64_t& id, std::function<void(void)> task, con
 			cerr << "The maximum number of threads in the thread pool is at least 2, It is currently " << n << ", And it will be automatically set to 2." << endl << flush;
 			threadPool->setMaximumNumberOfThreads(2);
 		}
-		threadPool->add([this](const volatile std::atomic<volatile bool>& loopFlag) {return mainService(loopFlag); });
+		threadPool->add([this](AtomicConstReference<bool> loopFlag) {return mainService(loopFlag); });
 	}
 	_TaskUnit unit;
 	unit.id = id;

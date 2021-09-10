@@ -6,6 +6,8 @@
 #include <atomic>
 #include <condition_variable>*/
 #include <mutex>
+#include <variant>
+#include <type_traits>
 #include "MineMutex.h"
 #include "ThreadPool.h"
 
@@ -15,19 +17,32 @@ namespace threadTool
 	class Async
 	{
 	private:
+		typedef std::variant<std::function<_Tp(void)>, std::function<_Tp(AtomicConstReference<bool>)>> funcType;
+	private:
 		Mutex _m;
 		ThreadPool& threadPool;
-		std::function<_Tp(void)> function;
+		funcType function;
 		_Tp buffer;
 	public:
-		Async(ThreadPool& threadPool, std::function<_Tp(void)> function)
+		Async(ThreadPool& threadPool, funcType function)
 			:threadPool(threadPool), function(function)
 		{
 			_m.lock();
-			threadPool.add([this](void) {
-				buffer = this->function();
+			if (function.index() == 0)
+			{
+				threadPool.add([this](void) {
+				buffer = std::get<0>(this->function)();
 				_m.try_unlock();
 				return; });
+			}
+			else
+			{
+				threadPool.add([this](AtomicConstReference<bool> flag) {
+					buffer = std::get<1>(this->function)(flag);
+					_m.try_unlock();
+					return; });
+			}
+			
 		}
 
 		~Async()
@@ -38,7 +53,20 @@ namespace threadTool
 		void reRun()
 		{
 			_m.lock();
-			threadPool.add([this]() {buffer = function(); _m.try_unlock(); });
+			if (function.index == 0)
+			{
+				threadPool.add([this](void) {
+					buffer = this->function();
+					_m.try_unlock();
+					return; });
+			}
+			else
+			{
+				threadPool.add([this](AtomicConstReference<bool> flag) {
+					buffer = this->function(flag);
+					_m.try_unlock();
+					return; });
+			}
 		}
 
 		_Tp get()

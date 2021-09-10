@@ -12,6 +12,7 @@
 #include <functional>
 #include <chrono>
 #include <sstream>
+#include "Atomic.h"
 namespace threadTool
 {
 	//template<bool _RECUR = false>
@@ -22,9 +23,9 @@ namespace threadTool
 		const bool _RECUR = false;//是否允许同一线程递归加解锁
 		std::condition_variable BlockingQueue;//阻塞队列
 		std::multiset<uint_fast64_t> readers; //当正在写时为所有者thread_id，否则为0
-		volatile std::atomic<uint_fast64_t> writer; //当正在写时为所有者thread_id，否则为0
-		volatile std::atomic<int_fast64_t> writingTimes;//正在写的数目（同一线程可多次获取锁）
-		volatile std::atomic<int_fast64_t> readingTimes;//正在读的数目
+		Atomic<uint_fast64_t> writer; //当正在写时为所有者thread_id，否则为0
+		Atomic<int_fast64_t> writingTimes;//正在写的数目（同一线程可多次获取锁）
+		Atomic<int_fast64_t> readingTimes;//正在读的数目
 	public:
 		const std::function<bool(void)> _AllowRead = [this]() {return (!(writingTimes > 0 || (readingTimes >= ULONG_MAX))) || (_RECUR && (writer == getThreadID() || (writer == 0 && readers.size() <= readers.count(getThreadID())))); };//判断是否允许读
 		const std::function<bool(void)> _AllowWrite = [this]() {return (!(writingTimes >0 || readingTimes>0)) || (_RECUR && (writer == getThreadID() || (writer == 0 && readers.size() <= readers.count(getThreadID())))); };//判断是否允许写
@@ -271,11 +272,11 @@ namespace threadTool
 		unique_writeLock(_Mutex& m)
 			:m(m)
 		{
-			m.lock_write();
+			m.lock();
 		}
 		~unique_writeLock()
 		{
-			m.unlock_write();
+			m.unlock();
 		}
 		_Mutex* operator->()
 		{
@@ -294,11 +295,57 @@ namespace threadTool
 		unique_readLock(_Mutex& m)
 			:m(m)
 		{
-			m.lock_read();
+			m.lock_shared();
 		}
 		~unique_readLock()
 		{
-			m.unlock_read();
+			m.unlock_shared();
+		}
+		_Mutex* operator->()
+		{
+			return &m;
+		}
+	};
+
+	template <typename _Mutex>
+	class unique_writeUnlock
+	{
+	private:
+		_Mutex& m;
+	public:
+		unique_writeUnlock(const unique_writeUnlock&) = delete;
+		unique_writeUnlock& operator=(const unique_writeUnlock&) = delete;
+		unique_writeUnlock(_Mutex& m)
+			:m(m)
+		{
+			m.unlock();
+		}
+		~unique_writeUnlock()
+		{
+			m.lock();
+		}
+		_Mutex* operator->()
+		{
+			return &m;
+		}
+	};
+
+	template <typename _Mutex>
+	class unique_readUnlock
+	{
+	private:
+		_Mutex& m;
+	public:
+		unique_readUnlock(const unique_readUnlock&) = delete;
+		unique_readUnlock& operator=(const unique_readUnlock&) = delete;
+		unique_readUnlock(_Mutex& m)
+			:m(m)
+		{
+			m.unlock_shared();
+		}
+		~unique_readUnlock()
+		{
+			m.lock_shared();
 		}
 		_Mutex* operator->()
 		{

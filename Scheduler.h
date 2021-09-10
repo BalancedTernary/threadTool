@@ -12,6 +12,8 @@
 #include "multMath.h"
 
 #include "ThreadPool.h"
+#include "Atomic.h"
+#include "Async.h"
 
 namespace threadTool
 {
@@ -23,7 +25,7 @@ namespace threadTool
 		private:
 			Scheduler* const scheduler;
 			const uint_fast64_t id;
-			volatile std::atomic<volatile bool> deleted;
+			Atomic<bool> deleted;
 		public:
 			_SchedulerUnit(Scheduler*, const uint_fast64_t&);
 			void deleteUnit();
@@ -47,11 +49,13 @@ namespace threadTool
 		std::mutex _mDeleDeque;
 		std::mutex _mTaskList;
 		std::condition_variable BlockingQueue;
-		volatile std::atomic<volatile uint_fast64_t> increment;
-		volatile std::atomic<volatile bool> workFlag;
-
+		Atomic<uint_fast64_t> increment;
+		Atomic<bool> workFlag;
+		//Atomic<bool> deleted;
+		Async<int> mainAsync;
+		
 	private:
-		void mainService(const volatile std::atomic<volatile bool>& loopFlag);
+		void mainService(AtomicConstReference<bool> loopFlag);
 		void add(const uint_fast64_t& id, std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint, const std::chrono::time_point<std::chrono::high_resolution_clock>& nextPoint);
 	public:
 		Scheduler(ThreadPool& threadPool);

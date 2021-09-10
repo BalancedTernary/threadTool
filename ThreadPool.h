@@ -13,6 +13,7 @@
 #include <iostream>
 #include "multMath.h"
 #include "_ThreadUnit.h"
+#include "Atomic.h"
 
 namespace threadTool
 {
@@ -29,19 +30,19 @@ namespace threadTool
 		std::condition_variable BlockingQueue;
 		std::condition_variable BlockingDeleting;
 
-		volatile std::atomic<volatile bool> loopFlag;
-		volatile std::atomic<volatile int_fast64_t> wakeUpLength;
+		Atomic<bool> loopFlag;
+		Atomic<int_fast64_t> wakeUpLength;
 
 
-		volatile std::atomic<volatile int_fast64_t> minimumNumberOfThreads;
-		volatile std::atomic<volatile int_fast64_t> maximumNumberOfThreads;
+		Atomic<int_fast64_t> minimumNumberOfThreads;
+		Atomic<int_fast64_t> maximumNumberOfThreads;
 		std::chrono::duration<volatile uint_fast64_t, std::nano> idleLife;
-		volatile std::atomic< double> redundancyRatio;//线程数 冗余率
+		Atomic<double> redundancyRatio;//线程数 冗余率
 
 	private:
 		std::chrono::time_point<std::chrono::high_resolution_clock> idleStartTime;
-		volatile std::atomic< int_least64_t> numberOfThreads;
-		volatile std::atomic< int_least64_t> numberOfIdles;
+		Atomic<int_least64_t> numberOfThreads;
+		Atomic<int_least64_t> numberOfIdles;
 
 
 		std::function <_ThreadUnit::Task(void)> funSrc;

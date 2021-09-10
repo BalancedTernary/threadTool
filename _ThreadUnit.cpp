@@ -3,6 +3,7 @@ using namespace std;
 using namespace threadTool;
 _ThreadUnit::_ThreadUnit(std::function<void(void)> onActivate, std::function<void(void)> onIdle)
 {
+	unique_lock<mutex> m(_mCondition);
 	_ThreadUnit::onActivate = onActivate;
 	_ThreadUnit::onIdle = onIdle;
 	getOneFunction = nullptr;
@@ -13,27 +14,43 @@ _ThreadUnit::_ThreadUnit(std::function<void(void)> onActivate, std::function<voi
 
 _ThreadUnit::_ThreadUnit(std::function < Task(void)> functionSource, std::function<void(void)> onActivate, std::function<void(void)> onIdle)
 {
+	unique_lock<mutex> m(_mCondition);
 	_ThreadUnit::onActivate = onActivate;
 	_ThreadUnit::onIdle = onIdle;
 	getOneFunction = functionSource;
 	activate = false;
+	notifyExit = false;
 	loopFlag = true;
 	loop = thread(&_ThreadUnit::loopFunction, this);
 }
 
 _ThreadUnit::~_ThreadUnit()
 {
-	loopFlag = false;
-	BlockingQueue.notify_all();
+	{
+		unique_lock<mutex> m(_mCondition);
+		notifyExit = false;
+		loopFlag = false;
+		BlockingQueue.notify_all();
+	}
 	if (loop.joinable())
 	{
 		loop.join();
 	}
 }
 
+void _ThreadUnit::notifyTaskExit()
+{
+	unique_lock<mutex> m(_mCondition);
+	if (loopFlag)
+	{
+		notifyExit = true;
+		loopFlag = false;
+	}
+}
+
 void _ThreadUnit::setFunctionSource(std::function < Task(void)> functionSource)
 {
-	unique_lock<mutex> m(_mGet);
+	unique_lock<mutex> m(_mCondition);
 	getOneFunction = functionSource;
 }
 
@@ -45,13 +62,12 @@ void _ThreadUnit::wakeUp()
 
 void _ThreadUnit::loopFunction()
 {
-	try {
-		while (loopFlag)
-		{
+	while (loopFlag)
+	{
+		try {
 			//unique_lock<mutex> m(_mCondition);
 			Task function;
 			{
-				unique_lock<mutex> m(_mGet);
 				if (getOneFunction != nullptr)
 				{
 					function = getOneFunction();
@@ -72,8 +88,9 @@ void _ThreadUnit::loopFunction()
 						activate = true;
 						if (onActivate != nullptr)
 						{
-
+							//m.unlock();
 							onActivate();
+							//m.lock();
 						}
 					}
 				}
@@ -83,10 +100,21 @@ void _ThreadUnit::loopFunction()
 					std::get<std::function<void(void)>>(function)();
 					break;
 				case 2:
-					std::get<std::function<void(const volatile std::atomic<volatile bool>&)>>(function)(loopFlag);
+					std::get<std::function<void(AtomicConstReference<bool>)>>(function)(loopFlag);
 					break;
 				default:
 					break;
+				}
+				{
+					//std::cerr << "\nAAA\n" << std::endl << std::flush;
+					unique_lock<mutex> m(_mCondition);
+					//std::cerr << "\nBBB\n" << std::endl << std::flush;
+
+					if (notifyExit)//如果任务是被通知退出，则不应该结束线程池线程，所以恢复loopFlag
+					{
+						loopFlag = true;
+						notifyExit = false;
+					}
 				}
 			}
 			else
@@ -97,20 +125,23 @@ void _ThreadUnit::loopFunction()
 				unique_lock<mutex> m(_mCondition);
 				if (activate)
 				{
+					activate = false;
 					if (onIdle != nullptr)
 					{
+						//m.unlock();
 						onIdle();
+						//m.lock();
 					}
-					activate = false;
 				}
 				BlockingQueue.wait(m);
 			}
 		}
-	}
-	catch (...)
-	{
+		catch (...)
+		{
 
+		}
 	}
+	
 }
 
 void _ThreadUnit::setOnActivate(std::function<void(void)> fun)
