@@ -46,6 +46,7 @@ void _ThreadUnit::notifyTaskExit()
 		notifyExit = true;
 		loopFlag = false;
 	}
+	BlockingQueue.notify_all();
 }
 
 void _ThreadUnit::setFunctionSource(std::function < Task(void)> functionSource)
@@ -77,12 +78,13 @@ void _ThreadUnit::loopFunction()
 					function = nullptr;
 				}
 			}
+			unique_lock<mutex> m(_mCondition);
 			if (function.index() > 0)
 			{
 				//idleStartTime = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
 				//unique_lock<mutex> m(_mActivate);
 				{
-					unique_lock<mutex> m(_mCondition);
+					//unique_lock<mutex> m(_mCondition);
 					if (!activate)
 					{
 						activate = true;
@@ -94,20 +96,23 @@ void _ThreadUnit::loopFunction()
 						}
 					}
 				}
-				switch (function.index())
 				{
-				case 1:
-					std::get<std::function<void(void)>>(function)();
-					break;
-				case 2:
-					std::get<std::function<void(AtomicConstReference<bool>)>>(function)(loopFlag);
-					break;
-				default:
-					break;
+					unique_writeUnlock m0(_mCondition);
+					switch (function.index())
+					{
+					case 1:
+						std::get<std::function<void(void)>>(function)();
+						break;
+					case 2:
+						std::get<std::function<void(AtomicConstReference<bool>)>>(function)(loopFlag);
+						break;
+					default:
+						break;
+					}
 				}
 				{
 					//std::cerr << "\nAAA\n" << std::endl << std::flush;
-					unique_lock<mutex> m(_mCondition);
+					//unique_lock<mutex> m(_mCondition);
 					//std::cerr << "\nBBB\n" << std::endl << std::flush;
 
 					if (notifyExit)//如果任务是被通知退出，则不应该结束线程池线程，所以恢复loopFlag
@@ -122,7 +127,7 @@ void _ThreadUnit::loopFunction()
 				//unique_lock<mutex> m(_mActivate);
 				//idleStartTime = std::chrono::high_resolution_clock::now();
 
-				unique_lock<mutex> m(_mCondition);
+				//unique_lock<mutex> m(_mCondition);
 				if (activate)
 				{
 					activate = false;
@@ -133,7 +138,7 @@ void _ThreadUnit::loopFunction()
 						//m.lock();
 					}
 				}
-				BlockingQueue.wait(m);
+				BlockingQueue.wait(m, [this](void) {return !loopFlag; });
 			}
 		}
 		catch (...)

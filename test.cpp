@@ -30,11 +30,14 @@ int main()
             m.lock_read();
             std::cout << "m.lock_read()" << std::endl;
             std::cout << std::flush;
+            m.unlock_read();
             /*m.lock_write();
             std::cout << "m.lock_write()" << std::endl;
             std::cout << std::flush;*/
             });
+        
         t1.join();
+        m.unlock_read();
     }
 
 
@@ -45,20 +48,15 @@ int main()
         //tp2.setMaximumNumberOfThreads(8);
         //tp2.setMinimumNumberOfThreads(4);
         //tp2.setRedundancyRatio(1.5);
-        tp2.add([](AtomicConstReference<bool> tag) {while (tag)std::cout << "aaa1" << std::endl << std::flush; });
-        tp2.add([](AtomicConstReference<bool> tag) {while (tag)std::cout << "aaa2" << std::endl << std::flush; });
-        tp2.add([](AtomicConstReference<bool> tag) {while (tag)std::cout << "aaa3" << std::endl << std::flush; });
-        tp2.add([](AtomicConstReference<bool> tag) {while (tag)std::cout << "aaa4" << std::endl << std::flush; });
-        tp2.add([](AtomicConstReference<bool> tag) {while (tag)std::cout<<"aaa5" << std::endl << std::flush; });
+        tp2.add([](AtomicConstReference<bool> tag) {do { std::cout << "aaa1" << std::endl << std::flush; } while (tag); });
+        tp2.add([](AtomicConstReference<bool> tag) {do { std::cout << "aaa2" << std::endl << std::flush; } while (tag); });
+        tp2.add([](AtomicConstReference<bool> tag) {do { std::cout << "aaa3" << std::endl << std::flush; } while (tag); });
+        tp2.add([](AtomicConstReference<bool> tag) {do { std::cout << "aaa4" << std::endl << std::flush; } while (tag); });
+        tp2.add([](AtomicConstReference<bool> tag) {do { std::cout << "aaa5" << std::endl << std::flush; } while (tag); });
         //std::this_thread::sleep_for(std::chrono::seconds(1));
 
     }
 
-    ThreadPool tp;
-    tp.setIdleLife(std::chrono::seconds(1));
-    tp.setMaximumNumberOfThreads(200);
-    tp.setMinimumNumberOfThreads(5);
-    tp.setRedundancyRatio(1.5);
     
 
     //std::this_thread::sleep_for(std::chrono::seconds(200));
@@ -91,6 +89,13 @@ int main()
         //BlockingQueue.wait_for(m, std::chrono::seconds(10));
 
     }
+
+
+    ThreadPool tp;
+    tp.setIdleLife(std::chrono::seconds(1));
+    tp.setMaximumNumberOfThreads(200);
+    tp.setMinimumNumberOfThreads(5);
+    tp.setRedundancyRatio(1.5);
     long long t = 1000;
     while (t-- > 0)
     {

@@ -33,7 +33,9 @@ ThreadPool::~ThreadPool()
 		BlockingDeleting.wait(m, [this]()
 			{
 				//BlockingQueue.notify_all();
-				unique_lock<mutex> m(_mFunctionDeque);
+				//unique_lock<mutex> m(_mFunctionDeque);
+				//std::cerr << "_mFunctionDeque\n" << std::flush;
+				unique_readLock _m(_mFunctionDeque);
 				return functionDeque.size() <= 0;
 			});
 		//loopFlag = false;
@@ -45,6 +47,11 @@ ThreadPool::~ThreadPool()
 		serviceLoop.join();
 		//std::cerr << "BBserviceLoop.join();" << std::endl << std::flush;
 	}
+	unique_writeLock m3(_mThreadDeque);
+	threadDeque.clear();
+	//unique_writeLock m2(_mFunctionDeque);
+	//unique_writeLock m3(_mThreadDeque);
+	//unique_writeLock m4(_mTime);
 }
 
 void ThreadPool::join()
@@ -52,7 +59,8 @@ void ThreadPool::join()
 	unique_lock<mutex> m(_mCondition);
 	BlockingDeleting.wait(m, [this]()
 		{
-			unique_lock<mutex> m(_mFunctionDeque);
+			//unique_lock<mutex> m(_mFunctionDeque);
+			unique_readLock m(_mFunctionDeque);
 			return (functionDeque.size() <= 0 && numberOfThreads <= numberOfIdles);
 		});
 
@@ -60,175 +68,188 @@ void ThreadPool::join()
 
 void ThreadPool::mainService()
 {
-	_mFunctionDeque.lock();
-	while (loopFlag || functionDeque.size()>0)
+	//unique_writeLock m1(_mFunctionDeque);
+	while (true)
 	{
-		_mFunctionDeque.unlock();
-		size_t notifyTimes = 0;
+		unique_readLock m1(_mFunctionDeque);
+		if (!(loopFlag || functionDeque.size() > 0))
+		{
+			break;
+		}
+		//unique_writeUnlock m2(_mFunctionDeque);
 		if (!loopFlag)
 		{
-			//unique_lock<mutex> m(_mFunctionDeque);
-			_mFunctionDeque.lock();
-			auto unit = threadDeque.begin();
-			//for (size_t i = 0; i < notifyTimes; ++i)
+			//unique_writeLock m3(_mFunctionDeque);
 			if (wakeUpLength > 0)
-			
-			do{
-				if (unit == threadDeque.end())
+			//for (size_t i = 0; i < wakeUpLength; ++i)
+			{
+				auto unit = threadDeque.begin();
+				if (unit != threadDeque.end())
 				{
-					
-					break;
-				}
-				_mFunctionDeque.unlock();
-				{
+					//unique_writeUnlock m4(_mFunctionDeque);
+					//unique_readUnlock m2(_mFunctionDeque);
 					unique_lock<mutex> m(_mThreadDeque);
 					unit->notifyTaskExit();
 					threadDeque.splice(threadDeque.end(), threadDeque, threadDeque.begin());
 				}
-				_mFunctionDeque.lock();
-				
-			} while (false);
-			_mFunctionDeque.unlock();
+			}
 		}
-		while (wakeUpLength > 0)
+		if (wakeUpLength > 0)
 		{
-			//--wakeUpLength;
+			unique_readUnlock m2(_mFunctionDeque);
+			while (wakeUpLength > 0)
 			{
-				unique_lock<mutex> m(_mThreadDeque);
-				//std::cerr << "step1" << std::endl << std::flush;
-
-				if (threadDeque.size() > 0)
+				unique_readLock m3(_mFunctionDeque);
+				//--wakeUpLength;
 				{
-					auto unit = threadDeque.end();
-					do
+					unique_lock<mutex> m(_mThreadDeque);
+					//std::cerr << "step1" << std::endl << std::flush;
+
+					if (threadDeque.size() > 0)
 					{
-						--unit;
-						if (!unit->isActivate())
+						auto unit = threadDeque.end();
+						do
 						{
-							unit->wakeUp();
-							++notifyTimes;
-							break;
-						}
-					} while (unit != threadDeque.begin());
-				}
-			}
-			size_t dequeLength;
-			{
-				unique_lock<mutex> m(_mFunctionDeque);
-				//std::cerr << "step2" << std::endl << std::flush;
-
-				dequeLength = functionDeque.size();
-			}
-			
-			if ((numberOfThreads + 1) 
-				<= multMath::max<int_least64_t, int_least64_t>
-				(multMath::min<int_least64_t, int_least64_t>
-					(maximumNumberOfThreads
-						, redundancyRatio 
-						* (numberOfThreads - numberOfIdles + dequeLength))
-					, minimumNumberOfThreads))
-			{
-				unique_lock<mutex> m(_mThreadDeque);
-				//std::cerr << "step3" << std::endl << std::flush;
-				threadDeque.emplace_back(funSrc, fromAct, fromIdl);
-				++numberOfThreads;
-				++numberOfIdles;
-			}
-			if (numberOfIdles <= 0)
-			{
-				break;
-			}
-		}
-		
-		
-
-
-		size_t dequeLength;
-		{
-			unique_lock<mutex> m(_mFunctionDeque);
-			//std::cerr << "step4" << std::endl << std::flush;
-			dequeLength = functionDeque.size();
-		}
-
-		unique_lock<mutex> m(_mCondition);
-		//std::cerr << "step5" << std::endl << std::flush;
-		
-		{
-			//unique_lock<mutex> m(_mFunctionDeque);//不能用这个，因为循环退出后会再次解锁
-			_mFunctionDeque.lock();
-			if (!(loopFlag || functionDeque.size() > 0))
-			{
-				break;
-			}
-			_mFunctionDeque.unlock();
-		}
-
-		if (loopFlag)
-		{
-			if (numberOfThreads
-			> multMath::max<int_least64_t, int_least64_t>
-				(multMath::min<int_least64_t, int_least64_t>
-					(maximumNumberOfThreads
-						, redundancyRatio
-						* (numberOfThreads - numberOfIdles + dequeLength))
-					, minimumNumberOfThreads))
-			{//线程超了，减少线程
-				std::chrono::time_point<std::chrono::high_resolution_clock> time;
-				{
-					unique_lock<mutex> m(_mTime);
-					//std::cerr << "step6" << std::endl << std::flush;
-					time = idleStartTime;
-				}
-				if (numberOfIdles > 0 && (chrono::high_resolution_clock::now() - time) > idleLife)
-				{
-					{
-						unique_lock<mutex> m(_mThreadDeque);
-
-						//std::cerr << "step7" << std::endl << std::flush;
-						auto unit = threadDeque.begin();
-						while (unit != threadDeque.end())
-						{
+							--unit;
 							if (!unit->isActivate())
 							{
-								--numberOfIdles;
-								--numberOfThreads;
-								threadDeque.erase(unit);
+								unit->wakeUp();
+								//++notifyTimes;
 								break;
 							}
-							unit++;
-						}
-
-					}
-					{
-						unique_lock<mutex> m(_mTime);
-						//std::cerr << "step8" << std::endl << std::flush;
-						idleStartTime = chrono::high_resolution_clock::now();
+						} while (unit != threadDeque.begin());
 					}
 				}
-				BlockingQueue.wait_until(m, multMath::min<std::chrono::time_point<std::chrono::high_resolution_clock>, std::chrono::time_point<std::chrono::high_resolution_clock>>(chrono::high_resolution_clock::now() + idleLife, time));
-				//std::cerr << "step9" << std::endl << std::flush;
+				size_t dequeLength;
+				{
+					//std::cerr << "step2" << std::endl << std::flush;
 
-
+					dequeLength = functionDeque.size();
+				}
+				if ((numberOfThreads + 1)
+					<= multMath::max<int_least64_t, int_least64_t>
+					(multMath::min<int_least64_t, int_least64_t>
+						(maximumNumberOfThreads
+							, redundancyRatio
+							* (numberOfThreads - numberOfIdles + dequeLength))
+						, minimumNumberOfThreads))
+				{
+					unique_lock<mutex> m(_mThreadDeque);
+					//std::cerr << "step3" << std::endl << std::flush;
+					threadDeque.emplace_back(funSrc, fromAct, fromIdl);
+					++numberOfThreads;
+					++numberOfIdles;
+				}
+				if (numberOfIdles <= 0)
+				{
+					break;
+				}
 			}
-			else
+			unique_lock<mutex> m(_mCondition);
+			if (wakeUpLength > 0 && loopFlag)
 			{
 				BlockingQueue.wait(m);
-				//std::cerr << "step10" << std::endl << std::flush;
+			}
+		}
+		else
+		{
+
+
+
+			size_t dequeLength;
+			{
+				//unique_readLock m(_mFunctionDeque);
+				//std::cerr << "step4" << std::endl << std::flush;
+				dequeLength = functionDeque.size();
+			}
+
+			//unique_lock<mutex> m(_mCondition);
+			//std::cerr << "step5" << std::endl << std::flush;
+
+			{
+				//unique_lock<mutex> m(_mFunctionDeque);//不能用这个，因为循环退出后会再次解锁
+
+				//unique_writeLock m5(_mFunctionDeque);
+				if (!(loopFlag || functionDeque.size() > 0))
+				{
+					break;
+				}
+			}
+			unique_readUnlock m4(_mFunctionDeque);
+			unique_lock<mutex> m(_mCondition);
+			if (loopFlag)
+			{
+				
+
+				if (numberOfThreads
+			> multMath::max<int_least64_t, int_least64_t>
+					(multMath::min<int_least64_t, int_least64_t>
+						(maximumNumberOfThreads
+							, redundancyRatio
+							* (numberOfThreads - numberOfIdles + dequeLength))
+						, minimumNumberOfThreads))
+				{//线程超了，减少线程
+					std::chrono::time_point<std::chrono::high_resolution_clock> time;
+					{
+						unique_writeUnlock m0(_mCondition);
+						{
+							unique_lock<mutex> m(_mTime);
+							//std::cerr << "step6" << std::endl << std::flush;
+							time = idleStartTime;
+						}
+						if (numberOfIdles > 0 && (chrono::high_resolution_clock::now() - time) > idleLife)
+						{
+							{
+								unique_lock<mutex> m(_mThreadDeque);
+
+								//std::cerr << "step7" << std::endl << std::flush;
+								auto unit = threadDeque.begin();
+								while (unit != threadDeque.end())
+								{
+									if (!unit->isActivate())
+									{
+										--numberOfIdles;
+										--numberOfThreads;
+										threadDeque.erase(unit);
+										break;
+									}
+									unit++;
+								}
+
+							}
+							{
+								unique_lock<mutex> m(_mTime);
+								//std::cerr << "step8" << std::endl << std::flush;
+								idleStartTime = chrono::high_resolution_clock::now();
+							}
+						}
+					}
+					//unique_lock<mutex> m(_mCondition);
+					BlockingQueue.wait_until(m, multMath::min<std::chrono::time_point<std::chrono::high_resolution_clock>, std::chrono::time_point<std::chrono::high_resolution_clock>>(chrono::high_resolution_clock::now() + idleLife, time));
+					//std::cerr << "step9" << std::endl << std::flush;
+
+
+				}
+				else
+				{
+					//unique_lock<mutex> m(_mCondition);
+					BlockingQueue.wait(m);
+					//std::cerr << "step10" << std::endl << std::flush;
+				}
 			}
 		}
 		////增加：在适当时候永久休眠等待唤醒以节约性能
 		//BlockingQueue.wait_until(m, multMath::min<std::chrono::time_point<std::chrono::high_resolution_clock>, std::chrono::time_point<std::chrono::high_resolution_clock>>(chrono::high_resolution_clock::now() + idleLife, time));		
-		_mFunctionDeque.lock();
+
 		//std::cerr << "step11" << std::endl << std::flush;
 	}
-	_mFunctionDeque.unlock();
 }
 
 _ThreadUnit::Task ThreadPool::functionSource()
 {
 	_ThreadUnit::Task fun;
 	{
-		unique_lock<mutex> m(_mFunctionDeque);
+		unique_lock<Mutex> m(_mFunctionDeque);
 		if (functionDeque.size() > 0)
 		{
 			--wakeUpLength;
@@ -240,6 +261,7 @@ _ThreadUnit::Task ThreadPool::functionSource()
 			fun = nullptr;
 		}
 	}
+	unique_lock<mutex> m(_mCondition);
 	BlockingDeleting.notify_all();
 	return fun;
 }
@@ -251,7 +273,8 @@ void ThreadPool::fromActivate()
 	}
 	size_t dequeLength;
 	{
-		unique_lock<mutex> m(_mFunctionDeque);
+		//unique_lock<mutex> m(_mFunctionDeque);
+		unique_readLock m(_mFunctionDeque);
 		dequeLength = functionDeque.size();
 	}
 	if (dequeLength > 0 
@@ -276,7 +299,8 @@ void ThreadPool::fromIdle()
 
 	size_t dequeLength;
 	{
-		unique_lock<mutex> m(_mFunctionDeque);
+		//unique_lock<mutex> m(_mFunctionDeque);
+		unique_readLock m(_mFunctionDeque);
 		dequeLength = functionDeque.size();
 	}
 
@@ -296,7 +320,7 @@ void ThreadPool::fromIdle()
 				idleStartTime = chrono::high_resolution_clock::now();
 			}
 		}
-		//unique_lock<mutex> m(_mCondition);
+		unique_lock<mutex> m(_mCondition);
 		BlockingDeleting.notify_all();
 	}
 }
@@ -304,11 +328,11 @@ void ThreadPool::fromIdle()
 void ThreadPool::add(_ThreadUnit::Task fun)
 {
 	{
-		unique_lock<mutex> m(_mFunctionDeque);
+		unique_lock<Mutex> m(_mFunctionDeque);
 		functionDeque.push_back(fun);
+		++wakeUpLength;
 	}
-	++wakeUpLength;
-	//unique_lock<mutex> m(_mCondition);
+	unique_lock<mutex> m(_mCondition);
 	BlockingQueue.notify_one();
 }
 

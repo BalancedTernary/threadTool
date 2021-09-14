@@ -24,7 +24,7 @@ namespace threadTool
 		std::list<_ThreadUnit> threadDeque;
 		std::thread serviceLoop;
 		std::mutex _mCondition;//条件变量锁
-		std::mutex _mFunctionDeque;
+		Mutex _mFunctionDeque;
 		std::mutex _mThreadDeque;
 		std::mutex _mTime;
 		std::condition_variable BlockingQueue;

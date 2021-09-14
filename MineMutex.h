@@ -4,6 +4,7 @@
 //注意考虑虚假唤醒问题
 #include <thread>
 #include <mutex>
+#include <shared_mutex>
 #include <condition_variable>
 #include <atomic>
 #include <map>
@@ -15,6 +16,101 @@
 #include "Atomic.h"
 namespace threadTool
 {
+
+
+	template <typename _Mutex>
+	class unique_writeLock
+	{
+	private:
+		_Mutex& m;
+	public:
+		unique_writeLock(const unique_writeLock&) = delete;
+		unique_writeLock& operator=(const unique_writeLock&) = delete;
+		unique_writeLock(_Mutex& m)
+			:m(m)
+		{
+			m.lock();
+		}
+		~unique_writeLock()
+		{
+			m.unlock();
+		}
+		_Mutex* operator->()
+		{
+			return &m;
+		}
+	};
+
+	template <typename _Mutex>
+	class unique_readLock
+	{
+	private:
+		_Mutex& m;
+	public:
+		unique_readLock(const unique_readLock&) = delete;
+		unique_readLock& operator=(const unique_readLock&) = delete;
+		unique_readLock(_Mutex& m)
+			:m(m)
+		{
+			m.lock_shared();
+		}
+		~unique_readLock()
+		{
+			m.unlock_shared();
+		}
+		_Mutex* operator->()
+		{
+			return &m;
+		}
+	};
+
+	template <typename _Mutex>
+	class unique_writeUnlock
+	{
+	private:
+		_Mutex& m;
+	public:
+		unique_writeUnlock(const unique_writeUnlock&) = delete;
+		unique_writeUnlock& operator=(const unique_writeUnlock&) = delete;
+		unique_writeUnlock(_Mutex& m)
+			:m(m)
+		{
+			m.unlock();
+		}
+		~unique_writeUnlock()
+		{
+			m.lock();
+		}
+		_Mutex* operator->()
+		{
+			return &m;
+		}
+	};
+
+	template <typename _Mutex>
+	class unique_readUnlock
+	{
+	private:
+		_Mutex& m;
+	public:
+		unique_readUnlock(const unique_readUnlock&) = delete;
+		unique_readUnlock& operator=(const unique_readUnlock&) = delete;
+		unique_readUnlock(_Mutex& m)
+			:m(m)
+		{
+			m.unlock_shared();
+		}
+		~unique_readUnlock()
+		{
+			m.lock_shared();
+		}
+		_Mutex* operator->()
+		{
+			return &m;
+		}
+	};
+
+
 	//template<bool _RECUR = false>
 	class Mutex
 	{
@@ -22,13 +118,14 @@ namespace threadTool
 		std::mutex _M;
 		const bool _RECUR = false;//是否允许同一线程递归加解锁
 		std::condition_variable BlockingQueue;//阻塞队列
-		std::multiset<uint_fast64_t> readers; //当正在写时为所有者thread_id，否则为0
-		Atomic<uint_fast64_t> writer; //当正在写时为所有者thread_id，否则为0
+		std::multiset<std::thread::id> readers = {}; //当正在写时为所有者thread_id，否则为0
+		std::shared_mutex _mReaders;
+		Atomic<std::thread::id> writer; //当正在写时为所有者thread_id，否则为0
 		Atomic<int_fast64_t> writingTimes;//正在写的数目（同一线程可多次获取锁）
 		Atomic<int_fast64_t> readingTimes;//正在读的数目
 	public:
-		const std::function<bool(void)> _AllowRead = [this]() {return (!(writingTimes > 0 || (readingTimes >= ULONG_MAX))) || (_RECUR && (writer == getThreadID() || (writer == 0 && readers.size() <= readers.count(getThreadID())))); };//判断是否允许读
-		const std::function<bool(void)> _AllowWrite = [this]() {return (!(writingTimes >0 || readingTimes>0)) || (_RECUR && (writer == getThreadID() || (writer == 0 && readers.size() <= readers.count(getThreadID())))); };//判断是否允许写
+		const std::function<bool(void)> _AllowRead = [this]() {unique_readLock m(_mReaders); return (!(writingTimes > 0 || (readingTimes >= ULONG_MAX))) || (_RECUR && (writer == getThreadID() || (writer == std::thread::id() && readers.size() <= readers.count(getThreadID())))); };//判断是否允许读
+		const std::function<bool(void)> _AllowWrite = [this]() {unique_readLock m(_mReaders); return (!(writingTimes > 0 || readingTimes > 0)) || (_RECUR && (writer == getThreadID() || (writer == std::thread::id() && readers.size() <= readers.count(getThreadID())))); };//判断是否允许写
 	private:
 		void _onWrite()//仅在加锁函数内调用，所以不加锁
 		{
@@ -37,21 +134,30 @@ namespace threadTool
 		}
 		void _onRead()//仅在加锁函数内调用，所以不加锁
 		{
+			unique_writeLock m(_mReaders);
 			++readingTimes;
-			readers.insert(getThreadID());
+			std::thread::id temp = getThreadID();
+			readers.insert(temp);
+			
 		}
 		void _unWrite()//仅在加锁函数内调用，所以不加锁
 		{
 			--writingTimes;
 			if (writingTimes <= 0)
 			{
-				writer = 0;
+				writer = std::thread::id();
 			}
 		}
 		void _unRead()//仅在加锁函数内调用，所以不加锁
 		{
+			unique_writeLock m(_mReaders);
 			--readingTimes;
-			readers.erase(readers.find(getThreadID()));//不能直接使用readers.erase(getThreadID())，因为会删掉值相同的全部元素
+			std::thread::id temp = getThreadID();
+			if (readers.find(temp) == readers.end())
+			{
+				std::cerr<<"readers.find(temp) != readers.end()\n"<<std::flush;
+			}
+			readers.erase(readers.find(temp));//不能直接使用readers.erase(getThreadID())，因为会删掉值相同的全部元素
 			if (readingTimes != readers.size())
 			{
 				std::_Throw_Cpp_error(1);
@@ -63,16 +169,34 @@ namespace threadTool
 		Mutex(bool _RECUR = false)
 			:_RECUR(_RECUR)
 		{
+			std::unique_lock<std::mutex> m(_M);
 			writingTimes = 0;
 			readingTimes = 0;
 		}
-		static uint_fast64_t getThreadID()
+		~Mutex()
+		{
+			std::unique_lock<std::mutex> m(_M);
+			if (writingTimes > 0)
+			{
+				std::cerr << "被加写锁的锁对象无法在被解锁前析构\n" << std::flush;
+			}
+			if (readingTimes > 0)
+			{
+				std::cerr << "被加读锁的锁对象无法在被解锁前析构\n" << std::flush;
+			}
+		}
+		/*static uint_fast64_t getThreadID()
 		{
 			std::stringstream s("");
 			s << std::this_thread::get_id();
 			uint_fast64_t id;
 			s >> id;
+			//std::cerr << id << std::endl << std::flush;
 			return id;
+		}*/
+		static std::thread::id getThreadID()
+		{
+			return std::this_thread::get_id();
 		}
 		void lock_write()
 		{
@@ -261,97 +385,6 @@ namespace threadTool
 		}
 	};
 
-	template <typename _Mutex>
-	class unique_writeLock
-	{
-	private:
-		_Mutex& m;
-	public:
-		unique_writeLock(const unique_writeLock&) = delete;
-		unique_writeLock& operator=(const unique_writeLock&) = delete;
-		unique_writeLock(_Mutex& m)
-			:m(m)
-		{
-			m.lock();
-		}
-		~unique_writeLock()
-		{
-			m.unlock();
-		}
-		_Mutex* operator->()
-		{
-			return &m;
-		}
-	};
-
-	template <typename _Mutex>
-	class unique_readLock
-	{
-	private:
-		_Mutex& m;
-	public:
-		unique_readLock(const unique_readLock&) = delete;
-		unique_readLock& operator=(const unique_readLock&) = delete;
-		unique_readLock(_Mutex& m)
-			:m(m)
-		{
-			m.lock_shared();
-		}
-		~unique_readLock()
-		{
-			m.unlock_shared();
-		}
-		_Mutex* operator->()
-		{
-			return &m;
-		}
-	};
-
-	template <typename _Mutex>
-	class unique_writeUnlock
-	{
-	private:
-		_Mutex& m;
-	public:
-		unique_writeUnlock(const unique_writeUnlock&) = delete;
-		unique_writeUnlock& operator=(const unique_writeUnlock&) = delete;
-		unique_writeUnlock(_Mutex& m)
-			:m(m)
-		{
-			m.unlock();
-		}
-		~unique_writeUnlock()
-		{
-			m.lock();
-		}
-		_Mutex* operator->()
-		{
-			return &m;
-		}
-	};
-
-	template <typename _Mutex>
-	class unique_readUnlock
-	{
-	private:
-		_Mutex& m;
-	public:
-		unique_readUnlock(const unique_readUnlock&) = delete;
-		unique_readUnlock& operator=(const unique_readUnlock&) = delete;
-		unique_readUnlock(_Mutex& m)
-			:m(m)
-		{
-			m.unlock_shared();
-		}
-		~unique_readUnlock()
-		{
-			m.lock_shared();
-		}
-		_Mutex* operator->()
-		{
-			return &m;
-		}
-	};
 
 };
 
