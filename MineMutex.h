@@ -148,9 +148,9 @@ namespace threadTool
 							&& readers.count(getThreadID()) > 0
 							&& ([&]()-> bool
 								{
-									for (auto& read : readers)
+									for (auto& reader : readers)
 									{
-										if (waitWriters.count(read) <= 0)
+										if (waitWriters.count(reader) <= 0)
 										{
 											return false;
 										}
