@@ -66,7 +66,6 @@ void _ThreadUnit::loopFunction()
 	while (loopFlag)
 	{
 		try {
-			//unique_lock<mutex> m(_mCondition);
 			Task function;
 			{
 				if (getOneFunction != nullptr)
@@ -78,26 +77,17 @@ void _ThreadUnit::loopFunction()
 					function = nullptr;
 				}
 			}
-			//auto start = std::chrono::high_resolution_clock::now();
 			unique_lock<mutex> m(_mCondition);
-			//auto end = std::chrono::high_resolution_clock::now();
-			//std::cerr <<"_mConditionLockTime: " << (end - start).count() / 1000000000.0 << std::endl << std::flush;
-
+			
 			if (function.index() > 0)
 			{
-				//idleStartTime = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
-				//unique_lock<mutex> m(_mActivate);
 				{
-					//unique_lock<mutex> m(_mCondition);
 					if (!activate)
 					{
 						activate = true;
 						if (onActivate != nullptr)
 						{
-							//unique_writeUnlock m(_mCondition);
-							//m.unlock();
 							onActivate();
-							//m.lock();
 						}
 					}
 				}
@@ -116,10 +106,6 @@ void _ThreadUnit::loopFunction()
 					}
 				}
 				{
-					//std::cerr << "\nAAA\n" << std::endl << std::flush;
-					//unique_lock<mutex> m(_mCondition);
-					//std::cerr << "\nBBB\n" << std::endl << std::flush;
-
 					if (notifyExit)//如果任务是被通知退出，则不应该结束线程池线程，所以恢复loopFlag
 					{
 						loopFlag = true;
@@ -129,20 +115,13 @@ void _ThreadUnit::loopFunction()
 			}
 			else
 			{
-				//unique_lock<mutex> m(_mActivate);
-				//idleStartTime = std::chrono::high_resolution_clock::now();
-
-				//unique_lock<mutex> m(_mCondition);
 				if (activate)
 				{
-					activate = false;
 					if (onIdle != nullptr)
 					{
-						//unique_writeUnlock m(_mCondition);
-						//m.unlock();
 						onIdle();
-						//m.lock();
 					}
+					activate = false;
 				}
 				if (loopFlag)
 				{

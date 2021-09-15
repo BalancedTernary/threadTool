@@ -10,27 +10,21 @@ Scheduler::Scheduler(ThreadPool& threadPool)
 	Scheduler::threadPool = &threadPool;
 	increment = 0;
 	workFlag = true;
-	//deleted = false;
 	auto n = threadPool.getMaximumNumberOfThreads();
 	if (n < 2)
 	{
 		cerr << "The maximum number of threads in the thread pool is at least 2, It is currently " << n << ", And it will be automatically set to 2."<< endl << flush;
 		threadPool.setMaximumNumberOfThreads(2);
 	}
-	//mainAsync = Async<void>(threadPool, [this](AtomicConstReference<bool> loopFlag) {return mainService(loopFlag); });
-	//threadPool.add([this](AtomicConstReference<bool> loopFlag) {return mainService(loopFlag); });
-
 }
 
 Scheduler::~Scheduler()
 {
-	//_mTaskList.lock();
 	{
 		unique_lock<mutex> m(_mTaskList);
 		workFlag = false;
 		BlockingQueue.notify_all();
 	}
-	//_mTaskList.unlock();
 	mainAsync.get();
 }
 
@@ -54,7 +48,6 @@ void Scheduler::mainService(AtomicConstReference<bool> loopFlag)
 			{
 				workFlag = false;
 				return;
-				//BlockingQueue.wait(m);
 			}
 			else
 			{
@@ -62,8 +55,7 @@ void Scheduler::mainService(AtomicConstReference<bool> loopFlag)
 				{
 					if (task->timePoint <= std::chrono::high_resolution_clock::now())
 					{
-						//std::cerr << "add-time: " << fixed << setprecision(8) << std::chrono::high_resolution_clock::now().time_since_epoch().count() / 1000000000.0 << std::endl << std::flush;
-
+						
 						threadPool->add(task->task);
 						if (task->nextPoint != std::chrono::time_point<std::chrono::high_resolution_clock>::max())
 						{
@@ -71,16 +63,6 @@ void Scheduler::mainService(AtomicConstReference<bool> loopFlag)
 							
 							task->timePoint = task->nextPoint;
 							task->nextPoint += duration;
-							/*//这段代码不起作用，因为任务线程阻塞无法影响任务发送的时间
-							auto timeOut = multMath::max(duration, task->timePoint - std::chrono::high_resolution_clock::now());
-							auto realDuration = duration * (duration / timeOut);
-							if ((duration / timeOut) < 1)
-							{
-								std::cerr << "sssssssssssssss" << endl << flush;
-							}
-							task->timePoint = std::chrono::high_resolution_clock::now() + realDuration;
-							task->nextPoint = task->timePoint + duration;
-							*/
 							nextTime = multMath::min(nextTime, task->timePoint);
 							std::list<Scheduler::_TaskUnit>::iterator subTask = task;
 							do
