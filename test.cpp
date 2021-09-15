@@ -78,7 +78,7 @@ int main()
         std::cout << "AsyncStart" << std::endl << std::flush;
         std::cout << te.get() << std::endl << std::flush;
         auto s2 = scheduler.addInterval([]() {std::cout << "ddd" << std::endl << std::flush; }, std::chrono::milliseconds(500));
-        auto s3 = scheduler.addInterval([]() {std::cout << "eee" << std::endl << std::flush; }, std::chrono::milliseconds(500));
+        auto s3 = scheduler.addInterval([]() {std::cout << "eee" << std::endl << std::flush; }, std::chrono::milliseconds(100));
         s.deleteUnit();
         BlockingQueue.wait_for(m, std::chrono::seconds(10));
         s2.deleteUnit();

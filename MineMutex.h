@@ -9,6 +9,7 @@
 #include <atomic>
 #include <map>
 #include <set>
+#include <algorithm>
 #include <limits>
 #include <functional>
 #include <chrono>
@@ -122,14 +123,41 @@ namespace threadTool
 		std::mutex _M;
 		const bool _RECUR = false;//是否允许同一线程递归加解锁
 		std::condition_variable BlockingQueue;//阻塞队列
+		std::multiset<std::thread::id> waitWriters = {}; //当正在写时为所有者thread_id，否则为0
 		std::multiset<std::thread::id> readers = {}; //当正在写时为所有者thread_id，否则为0
-		std::shared_mutex _mReaders;
+		//std::shared_mutex _mReaders;
 		Atomic<std::thread::id> writer; //当正在写时为所有者thread_id，否则为0
 		Atomic<int_fast64_t> writingTimes;//正在写的数目（同一线程可多次获取锁）
 		Atomic<int_fast64_t> readingTimes;//正在读的数目
 	public:
-		const std::function<bool(void)> _AllowRead = [this]() {unique_readLock m(_mReaders); return (!(writingTimes > 0 || (readingTimes >= ULONG_MAX))) || (_RECUR && (writer == getThreadID() || (writer == std::thread::id() && readers.size() <= readers.count(getThreadID())))); };//判断是否允许读
-		const std::function<bool(void)> _AllowWrite = [this]() {unique_readLock m(_mReaders); return (!(writingTimes > 0 || readingTimes > 0)) || (_RECUR && (writer == getThreadID() || (writer == std::thread::id() && readers.size() <= readers.count(getThreadID())))); };//判断是否允许写
+		const std::function<bool(void)> _AllowRead = [this]()
+		{//判断是否允许读
+			return ((readingTimes < ULONG_MAX)
+					 && ((writingTimes <= 0)
+						 || (_RECUR && ((writer == getThreadID())))));
+		};
+		//const std::function<bool(void)> _AllowRead = [this]() { return (!(writingTimes > 0 || (readingTimes >= ULONG_MAX))) || (_RECUR && (writer == getThreadID() || (writer == std::thread::id() && readers.size() <= readers.count(getThreadID())))); };//判断是否允许读
+		const std::function<bool(void)> _AllowWrite = [this]()
+		{//判断是否允许写
+			//unique_readLock m(_mReaders); 
+			return ((writingTimes < ULONG_MAX)
+				&& (((writingTimes <= 0)
+					&& (readingTimes <= 0))
+					|| (_RECUR && ((writer == getThreadID())
+						|| (writer == std::thread::id()
+							&& readers.count(getThreadID()) > 0
+							&& ([&]()-> bool
+								{
+									for (auto& read : readers)
+									{
+										if (waitWriters.count(read) <= 0)
+										{
+											return false;
+										}
+									}
+									return true;
+								}())))))); };
+		//const std::function<bool(void)> _AllowWrite = [this]() { return (!(writingTimes > 0 || readingTimes > 0)) || (_RECUR && (writer == getThreadID() || (writer == std::thread::id() && readers.size() <= readers.count(getThreadID())))); };//判断是否允许写
 	private:
 		void _onWrite()//仅在加锁函数内调用，所以不加锁
 		{
@@ -138,7 +166,7 @@ namespace threadTool
 		}
 		void _onRead()//仅在加锁函数内调用，所以不加锁
 		{
-			unique_writeLock m(_mReaders);
+			//unique_writeLock m(_mReaders);
 			++readingTimes;
 			std::thread::id temp = getThreadID();
 			readers.insert(temp);
@@ -154,7 +182,7 @@ namespace threadTool
 		}
 		void _unRead()//仅在加锁函数内调用，所以不加锁
 		{
-			unique_writeLock m(_mReaders);
+			//unique_writeLock m(_mReaders);
 			--readingTimes;
 			std::thread::id temp = getThreadID();
 			if (readers.find(temp) == readers.end())
@@ -206,7 +234,10 @@ namespace threadTool
 		{
 			//auto start = std::chrono::high_resolution_clock::now();
 			std::unique_lock<std::mutex> m(_M);
+			auto temp = getThreadID();
+			waitWriters.insert(temp);
 			BlockingQueue.wait(m, _AllowWrite);//自动解锁和加锁m，_AllowWrite为false时才能阻塞，为true时才能解除阻塞
+			waitWriters.erase(waitWriters.find(temp));
 			_onWrite();
 			//auto end = std::chrono::high_resolution_clock::now();
 			//std::cerr << getThreadID() << "-writeLockTime: " << (end - start).count() / 1000000000.0 << std::endl << std::flush;
@@ -214,10 +245,14 @@ namespace threadTool
 		bool try_lock_write()
 		{
 			std::unique_lock<std::mutex> m(_M);
+			auto temp = getThreadID();
+			waitWriters.insert(temp);
 			if (!_AllowWrite())
 			{
+				waitWriters.erase(waitWriters.find(temp));
 				return false;
 			}
+			waitWriters.erase(waitWriters.find(temp));
 			_onWrite();
 			return true;
 		}
@@ -225,13 +260,17 @@ namespace threadTool
 		bool try_lock_write_until(const std::chrono::time_point<_Clock, _Duration>& _Abs_time)
 		{
 			std::unique_lock<std::mutex> m(_M);
+			auto temp = getThreadID();
+			waitWriters.insert(temp);
 			if (!_AllowWrite())
 			{
 				if (!BlockingQueue.wait_until(m, _Abs_time, _AllowWrite))
 				{
+					waitWriters.erase(waitWriters.find(temp));
 					return false;
 				}
 			}
+			waitWriters.erase(waitWriters.find(temp));
 			_onWrite();
 			return true;
 		}
@@ -242,37 +281,33 @@ namespace threadTool
 		}
 		void unlock_write()
 		{
+			std::unique_lock<std::mutex> m(_M);
+			if (writingTimes <= 0)
 			{
-				std::unique_lock<std::mutex> m(_M);
-				if (writingTimes <= 0)
-				{
-					std::_Throw_Cpp_error(1);
-				}
-				_unWrite();
+				std::_Throw_Cpp_error(1);
 			}
+			_unWrite();
 			BlockingQueue.notify_one();
+
 		}
 		bool try_unlock_write()
 		{
+			std::unique_lock<std::mutex> m(_M);
+			if (writingTimes <= 0)
 			{
-				std::unique_lock<std::mutex> m(_M);
-				if (writingTimes <= 0)
-				{
-					return false;
-				}
-				_unWrite();
+				return false;
 			}
+			_unWrite();
 			BlockingQueue.notify_one();
 			return true;
 		}
 		void lock_read()
 		{
 			//auto start = std::chrono::high_resolution_clock::now();
-			{
-				std::unique_lock<std::mutex> m(_M);
-				BlockingQueue.wait(m, _AllowRead);//自动解锁和加锁m，_AllowWrite为false时才能阻塞，为true时才能解除阻塞
-				_onRead();
-			}
+			
+			std::unique_lock<std::mutex> m(_M);
+			BlockingQueue.wait(m, _AllowRead);//自动解锁和加锁m，_AllowWrite为false时才能阻塞，为true时才能解除阻塞
+			_onRead();
 			BlockingQueue.notify_one();
 			//auto end = std::chrono::high_resolution_clock::now();
 			//std::cerr << getThreadID() << "-readLockTime: " << (end - start).count() / 1000000000.0 << std::endl << std::flush;
@@ -280,31 +315,27 @@ namespace threadTool
 		}
 		bool try_lock_read()
 		{
+			std::unique_lock<std::mutex> m(_M);
+			if (!_AllowRead())
 			{
-				std::unique_lock<std::mutex> m(_M);
-				if (!_AllowRead())
-				{
-					return false;
-				}
-				_onRead();
+				return false;
 			}
+			_onRead();
 			BlockingQueue.notify_one();
 			return true;
 		}
 		template <typename _Clock, typename _Duration>
 		bool try_lock_read_until(const std::chrono::time_point<_Clock, _Duration>& _Abs_time)
 		{
+			std::unique_lock<std::mutex> m(_M);
+			if (!_AllowRead())
 			{
-				std::unique_lock<std::mutex> m(_M);
-				if (!_AllowRead())
+				if (!BlockingQueue.wait_until(m, _Abs_time, _AllowRead))
 				{
-					if (!BlockingQueue.wait_until(m, _Abs_time, _AllowRead))
-					{
-						return false;
-					}
+					return false;
 				}
-				_onRead();
 			}
+			_onRead();
 			BlockingQueue.notify_one();
 			return true;
 		}
@@ -315,26 +346,22 @@ namespace threadTool
 		}
 		void unlock_read()
 		{
+			std::unique_lock<std::mutex> m(_M);
+			if (readingTimes <= 0)
 			{
-				std::unique_lock<std::mutex> m(_M);
-				if (readingTimes <= 0)
-				{
-					std::_Throw_Cpp_error(1);
-				}
-				_unRead();
+				std::_Throw_Cpp_error(1);
 			}
+			_unRead();
 			BlockingQueue.notify_one();
 		}
 		bool try_unlock_read()
 		{
+			std::unique_lock<std::mutex> m(_M);
+			if (readingTimes <= 0)
 			{
-				std::unique_lock<std::mutex> m(_M);
-				if (readingTimes <= 0)
-				{
-					return false;
-				}
-				_unRead();
+				return false;
 			}
+			_unRead();
 			BlockingQueue.notify_one();
 			return true;
 		}
