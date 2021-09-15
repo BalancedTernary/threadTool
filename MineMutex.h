@@ -13,6 +13,7 @@
 #include <functional>
 #include <chrono>
 #include <sstream>
+#include <iostream>
 #include "Atomic.h"
 
 #include <chrono>
