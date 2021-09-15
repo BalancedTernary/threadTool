@@ -72,6 +72,8 @@ void ThreadPool::mainService()
 	while (true)
 	{
 		unique_readLock m1(_mFunctionDeque);
+		//std::cerr << "step1" << std::endl << std::flush;
+
 		if (!(loopFlag || functionDeque.size() > 0))
 		{
 			break;
@@ -83,6 +85,8 @@ void ThreadPool::mainService()
 			if (wakeUpLength > 0)
 			//for (size_t i = 0; i < wakeUpLength; ++i)
 			{
+				//std::cerr << "step2" << std::endl << std::flush;
+
 				auto unit = threadDeque.begin();
 				if (unit != threadDeque.end())
 				{
@@ -96,16 +100,20 @@ void ThreadPool::mainService()
 		}
 		if (wakeUpLength > 0)
 		{
+			//std::cerr << "step3" << std::endl << std::flush;
+			//auto start = std::chrono::high_resolution_clock::now();
 			unique_readUnlock m2(_mFunctionDeque);
+			
 			while (wakeUpLength > 0)
 			{
-				unique_readLock m3(_mFunctionDeque);
+				//unique_readLock m3(_mFunctionDeque);
 				//--wakeUpLength;
 				{
 					unique_lock<mutex> m(_mThreadDeque);
 					//std::cerr << "step1" << std::endl << std::flush;
 
-					if (threadDeque.size() > 0)
+					//if (threadDeque.size() > 0)
+					if (numberOfIdles>0)
 					{
 						auto unit = threadDeque.end();
 						do
@@ -120,6 +128,11 @@ void ThreadPool::mainService()
 						} while (unit != threadDeque.begin());
 					}
 				}
+				//auto start = std::chrono::high_resolution_clock::now();
+				unique_readLock m3(_mFunctionDeque);
+				//auto end = std::chrono::high_resolution_clock::now();
+				//std::cerr << "_mFunctionDequeLockTime: " << (end - start).count() / 1000000000.0 << std::endl << std::flush;
+
 				size_t dequeLength;
 				{
 					//std::cerr << "step2" << std::endl << std::flush;
@@ -142,18 +155,27 @@ void ThreadPool::mainService()
 				}
 				if (numberOfIdles <= 0)
 				{
+					//std::cerr << "step4" << std::endl << std::flush;
+
 					break;
 				}
 			}
+			
 			unique_lock<mutex> m(_mCondition);
+			//auto end = std::chrono::high_resolution_clock::now();
+			//std::cerr << "wakeUpLoopTime: " << (end - start).count() / 1000000000.0 << std::endl << std::flush;
+			
 			if (wakeUpLength > 0 && loopFlag)
 			{
+				//std::cerr << "step5" << std::endl << std::flush;
+
 				BlockingQueue.wait(m);
 			}
 		}
 		else
 		{
 
+			//std::cerr << "step6" << std::endl << std::flush;
 
 
 			size_t dequeLength;
@@ -180,6 +202,7 @@ void ThreadPool::mainService()
 			if (loopFlag)
 			{
 				
+				//std::cerr << "step7" << std::endl << std::flush;
 
 				if (numberOfThreads
 			> multMath::max<int_least64_t, int_least64_t>
@@ -189,6 +212,8 @@ void ThreadPool::mainService()
 							* (numberOfThreads - numberOfIdles + dequeLength))
 						, minimumNumberOfThreads))
 				{//线程超了，减少线程
+					//std::cerr << "step8" << std::endl << std::flush;
+
 					std::chrono::time_point<std::chrono::high_resolution_clock> time;
 					{
 						unique_writeUnlock m0(_mCondition);
@@ -199,6 +224,8 @@ void ThreadPool::mainService()
 						}
 						if (numberOfIdles > 0 && (chrono::high_resolution_clock::now() - time) > idleLife)
 						{
+							//std::cerr << "step9" << std::endl << std::flush;
+
 							{
 								unique_lock<mutex> m(_mThreadDeque);
 
@@ -232,6 +259,8 @@ void ThreadPool::mainService()
 				}
 				else
 				{
+					//std::cerr << "step10" << std::endl << std::flush;
+
 					//unique_lock<mutex> m(_mCondition);
 					BlockingQueue.wait(m);
 					//std::cerr << "step10" << std::endl << std::flush;

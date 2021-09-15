@@ -1,4 +1,7 @@
 #include "Scheduler.h"
+
+#include <iomanip>
+
 using namespace std;
 using namespace threadTool;
 Scheduler::Scheduler(ThreadPool& threadPool)
@@ -59,6 +62,8 @@ void Scheduler::mainService(AtomicConstReference<bool> loopFlag)
 				{
 					if (task->timePoint <= std::chrono::high_resolution_clock::now())
 					{
+						//std::cerr << "add-time: " << fixed << setprecision(8) << std::chrono::high_resolution_clock::now().time_since_epoch().count() / 1000000000.0 << std::endl << std::flush;
+
 						threadPool->add(task->task);
 						if (task->nextPoint != std::chrono::time_point<std::chrono::high_resolution_clock>::max())
 						{

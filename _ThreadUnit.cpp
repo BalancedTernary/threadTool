@@ -78,7 +78,11 @@ void _ThreadUnit::loopFunction()
 					function = nullptr;
 				}
 			}
+			//auto start = std::chrono::high_resolution_clock::now();
 			unique_lock<mutex> m(_mCondition);
+			//auto end = std::chrono::high_resolution_clock::now();
+			//std::cerr <<"_mConditionLockTime: " << (end - start).count() / 1000000000.0 << std::endl << std::flush;
+
 			if (function.index() > 0)
 			{
 				//idleStartTime = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
@@ -90,6 +94,7 @@ void _ThreadUnit::loopFunction()
 						activate = true;
 						if (onActivate != nullptr)
 						{
+							//unique_writeUnlock m(_mCondition);
 							//m.unlock();
 							onActivate();
 							//m.lock();
@@ -133,12 +138,16 @@ void _ThreadUnit::loopFunction()
 					activate = false;
 					if (onIdle != nullptr)
 					{
+						//unique_writeUnlock m(_mCondition);
 						//m.unlock();
 						onIdle();
 						//m.lock();
 					}
 				}
-				BlockingQueue.wait(m, [this](void) {return !loopFlag; });
+				if (loopFlag)
+				{
+					BlockingQueue.wait(m);
+				}
 			}
 		}
 		catch (...)

@@ -14,6 +14,9 @@
 #include <chrono>
 #include <sstream>
 #include "Atomic.h"
+
+#include <chrono>
+
 namespace threadTool
 {
 
@@ -200,9 +203,12 @@ namespace threadTool
 		}
 		void lock_write()
 		{
+			//auto start = std::chrono::high_resolution_clock::now();
 			std::unique_lock<std::mutex> m(_M);
 			BlockingQueue.wait(m, _AllowWrite);//自动解锁和加锁m，_AllowWrite为false时才能阻塞，为true时才能解除阻塞
 			_onWrite();
+			//auto end = std::chrono::high_resolution_clock::now();
+			//std::cerr << getThreadID() << "-writeLockTime: " << (end - start).count() / 1000000000.0 << std::endl << std::flush;
 		}
 		bool try_lock_write()
 		{
@@ -260,12 +266,16 @@ namespace threadTool
 		}
 		void lock_read()
 		{
+			//auto start = std::chrono::high_resolution_clock::now();
 			{
 				std::unique_lock<std::mutex> m(_M);
 				BlockingQueue.wait(m, _AllowRead);//自动解锁和加锁m，_AllowWrite为false时才能阻塞，为true时才能解除阻塞
 				_onRead();
 			}
 			BlockingQueue.notify_one();
+			//auto end = std::chrono::high_resolution_clock::now();
+			//std::cerr << getThreadID() << "-readLockTime: " << (end - start).count() / 1000000000.0 << std::endl << std::flush;
+
 		}
 		bool try_lock_read()
 		{
