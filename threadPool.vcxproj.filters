@@ -44,7 +44,7 @@
     <ClInclude Include="Async.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="MineMutex.h">
+    <ClInclude Include="DeluxeMutex.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Atomic.h">

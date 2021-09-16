@@ -8,7 +8,7 @@
 #include <mutex>
 #include <variant>
 #include <type_traits>
-#include "MineMutex.h"
+#include "DeluxeMutex.h"
 #include "ThreadPool.h"
 
 namespace threadTool

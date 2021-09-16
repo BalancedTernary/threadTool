@@ -7,6 +7,9 @@ using namespace threadTool;
 Scheduler::Scheduler(ThreadPool& threadPool)
 	:mainAsync(Async<int>(threadPool, [this](AtomicConstReference<bool> loopFlag) {mainService(loopFlag); return 0; }))
 {
+	unique_lock<mutex> m1(_mDeleDeque);
+	unique_lock<mutex> m2(_mTaskList);
+
 	Scheduler::threadPool = &threadPool;
 	increment = 0;
 	workFlag = true;

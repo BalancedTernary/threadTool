@@ -10,7 +10,7 @@
 #include <variant>
 #include <iostream>
 #include "Atomic.h"
-#include "MineMutex.h"
+#include "DeluxeMutex.h"
 
 namespace threadTool
 {

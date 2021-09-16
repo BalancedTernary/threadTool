@@ -15,6 +15,7 @@
 #include "ThreadPool.h"
 #include "Atomic.h"
 #include "Async.h"
+#include "DeluxeMutex.h"
 
 namespace threadTool
 {

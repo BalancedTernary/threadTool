@@ -7,6 +7,8 @@ ThreadPool::ThreadPool()
 	//funSrc = [this]() {return functionSource(); };
 	//fromAct = [this]() {return fromActivate(); };
 	//fromIdl = [this]() {return fromIdle(); };
+	unique_lock<mutex> m1(_mCondition);
+	unique_lock<Mutex> m2(_mFunctionDeque);
 	funSrc = std::bind(&ThreadPool::functionSource, this);
 	fromAct = std::bind(&ThreadPool::fromActivate, this);
 	fromIdl = std::bind(&ThreadPool::fromIdle, this);

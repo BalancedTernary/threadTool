@@ -14,6 +14,7 @@
 #include "multMath.h"
 #include "_ThreadUnit.h"
 #include "Atomic.h"
+#include "DeluxeMutex.h"
 
 namespace threadTool
 {
