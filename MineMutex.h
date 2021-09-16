@@ -237,8 +237,8 @@ namespace threadTool
 			auto temp = getThreadID();
 			waitWriters.insert(temp);
 			BlockingQueue.wait(m, _AllowWrite);//自动解锁和加锁m，_AllowWrite为false时才能阻塞，为true时才能解除阻塞
-			waitWriters.erase(waitWriters.find(temp));
 			_onWrite();
+			waitWriters.erase(waitWriters.find(temp));
 			//auto end = std::chrono::high_resolution_clock::now();
 			//std::cerr << getThreadID() << "-writeLockTime: " << (end - start).count() / 1000000000.0 << std::endl << std::flush;
 		}
@@ -252,8 +252,8 @@ namespace threadTool
 				waitWriters.erase(waitWriters.find(temp));
 				return false;
 			}
-			waitWriters.erase(waitWriters.find(temp));
 			_onWrite();
+			waitWriters.erase(waitWriters.find(temp));
 			return true;
 		}
 		template <typename _Clock, typename _Duration>
@@ -270,8 +270,8 @@ namespace threadTool
 					return false;
 				}
 			}
-			waitWriters.erase(waitWriters.find(temp));
 			_onWrite();
+			waitWriters.erase(waitWriters.find(temp));
 			return true;
 		}
 		template <typename _Rep, typename _Period>
