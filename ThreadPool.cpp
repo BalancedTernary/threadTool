@@ -18,10 +18,10 @@ ThreadPool::ThreadPool()
 	wakeUpLength = 0;
 
 
-	redundancyRatio = 1;
-	idleLife = std::chrono::nanoseconds(0);
+	redundancyRatio = 1.5;
+	idleLife = std::chrono::minutes(1);
 	minimumNumberOfThreads = 0;
-	maximumNumberOfThreads = 2;
+	maximumNumberOfThreads = omp_get_num_procs();
 
 	loopFlag = true;
 	serviceLoop= thread(&ThreadPool::mainService, this);

@@ -15,7 +15,7 @@
 #include "_ThreadUnit.h"
 #include "Atomic.h"
 #include "DeluxeMutex.h"
-
+#include <omp.h>
 namespace threadTool
 {
 	class ThreadPool
