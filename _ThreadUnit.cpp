@@ -94,16 +94,23 @@ void _ThreadUnit::loopFunction()
 					}
 					{
 						unique_writeUnlock m0(_mCondition);
-						switch (function.index())
+						try
 						{
-						case 1:
-							std::get<std::function<void(void)>>(function)();
-							break;
-						case 2:
-							std::get<std::function<void(AtomicConstReference<bool>)>>(function)(loopFlag);
-							break;
-						default:
-							break;
+							switch (function.index())
+							{
+							case 1:
+								std::get<std::function<void(void)>>(function)();
+								break;
+							case 2:
+								std::get<std::function<void(AtomicConstReference<bool>)>>(function)(loopFlag);
+								break;
+							default:
+								break;
+							}
+						}
+						catch (...)
+						{
+							std::cerr << "TaskError\n" << std::flush;
 						}
 					}
 					{
