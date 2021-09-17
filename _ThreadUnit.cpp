@@ -77,55 +77,57 @@ void _ThreadUnit::loopFunction()
 					function = nullptr;
 				}
 			}
-			unique_lock<mutex> m(_mCondition);
-			
-			if (function.index() > 0)
 			{
+				unique_lock<mutex> m(_mCondition);
+
+				if (function.index() > 0)
 				{
-					if (!activate)
 					{
-						activate = true;
-						if (onActivate != nullptr)
+						if (!activate)
 						{
-							onActivate();
+							activate = true;
+							if (onActivate != nullptr)
+							{
+								onActivate();
+							}
+						}
+					}
+					{
+						unique_writeUnlock m0(_mCondition);
+						switch (function.index())
+						{
+						case 1:
+							std::get<std::function<void(void)>>(function)();
+							break;
+						case 2:
+							std::get<std::function<void(AtomicConstReference<bool>)>>(function)(loopFlag);
+							break;
+						default:
+							break;
+						}
+					}
+					{
+						if (notifyExit)//如果任务是被通知退出，则不应该结束线程池线程，所以恢复loopFlag
+						{
+							loopFlag = true;
+							notifyExit = false;
 						}
 					}
 				}
+				else
 				{
-					unique_writeUnlock m0(_mCondition);
-					switch (function.index())
+					if (activate)
 					{
-					case 1:
-						std::get<std::function<void(void)>>(function)();
-						break;
-					case 2:
-						std::get<std::function<void(AtomicConstReference<bool>)>>(function)(loopFlag);
-						break;
-					default:
-						break;
+						if (onIdle != nullptr)
+						{
+							onIdle();
+						}
+						activate = false;
 					}
-				}
-				{
-					if (notifyExit)//如果任务是被通知退出，则不应该结束线程池线程，所以恢复loopFlag
+					if (loopFlag)
 					{
-						loopFlag = true;
-						notifyExit = false;
+						BlockingQueue.wait(m);
 					}
-				}
-			}
-			else
-			{
-				if (activate)
-				{
-					if (onIdle != nullptr)
-					{
-						onIdle();
-					}
-					activate = false;
-				}
-				if (loopFlag)
-				{
-					BlockingQueue.wait(m);
 				}
 			}
 		}

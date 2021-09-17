@@ -43,8 +43,10 @@ ThreadPool::~ThreadPool()
 	{
 		serviceLoop.join();
 	}
-	unique_writeLock m3(_mThreadDeque);
-	threadDeque.clear();
+	{
+		unique_writeLock m3(_mThreadDeque);
+		threadDeque.clear();
+	}
 }
 
 void ThreadPool::join()
@@ -104,35 +106,38 @@ void ThreadPool::mainService()
 						} while (unit != threadDeque.begin());
 					}
 				}
-				unique_readLock m3(_mFunctionDeque);
-				
-				size_t dequeLength;
 				{
-					dequeLength = functionDeque.size();
-				}
-				if ((numberOfThreads + 1)
-					<= multMath::max<int_least64_t, int_least64_t>
-					(multMath::min<int_least64_t, int_least64_t>
-						(maximumNumberOfThreads
-							, redundancyRatio
-							* (numberOfThreads - numberOfIdles + dequeLength))
-						, minimumNumberOfThreads))
-				{
-					unique_lock<mutex> m(_mThreadDeque);
-					threadDeque.emplace_back(funSrc, fromAct, fromIdl);
-					++numberOfThreads;
-					++numberOfIdles;
-				}
-				if (numberOfIdles <= 0)
-				{
-					break;
+					unique_readLock m3(_mFunctionDeque);
+
+					size_t dequeLength;
+					{
+						dequeLength = functionDeque.size();
+					}
+					if ((numberOfThreads + 1)
+						<= multMath::max<int_least64_t, int_least64_t>
+						(multMath::min<int_least64_t, int_least64_t>
+							(maximumNumberOfThreads
+								, redundancyRatio
+								* (numberOfThreads - numberOfIdles + dequeLength))
+							, minimumNumberOfThreads))
+					{
+						unique_lock<mutex> m(_mThreadDeque);
+						threadDeque.emplace_back(funSrc, fromAct, fromIdl);
+						++numberOfThreads;
+						++numberOfIdles;
+					}
+					if (numberOfIdles <= 0)
+					{
+						break;
+					}
 				}
 			}
-			
-			unique_lock<mutex> m(_mCondition);
-			if (wakeUpLength > 0 && loopFlag)
 			{
-				BlockingQueue.wait(m);
+				unique_lock<mutex> m(_mCondition);
+				if (wakeUpLength > 0 && loopFlag)
+				{
+					BlockingQueue.wait(m);
+				}
 			}
 		}
 		else
@@ -147,55 +152,57 @@ void ThreadPool::mainService()
 					break;
 				}
 			}
-			unique_readUnlock m4(_mFunctionDeque);
-			unique_lock<mutex> m(_mCondition);
-			if (loopFlag)
 			{
-				if (numberOfThreads
+				unique_readUnlock m4(_mFunctionDeque);
+				unique_lock<mutex> m(_mCondition);
+				if (loopFlag)
+				{
+					if (numberOfThreads
 			> multMath::max<int_least64_t, int_least64_t>
-					(multMath::min<int_least64_t, int_least64_t>
-						(maximumNumberOfThreads
-							, redundancyRatio
-							* (numberOfThreads - numberOfIdles + dequeLength))
-						, minimumNumberOfThreads))
-				{//线程超了，减少线程
-					std::chrono::time_point<std::chrono::high_resolution_clock> time;
-					{
-						unique_writeUnlock m0(_mCondition);
+						(multMath::min<int_least64_t, int_least64_t>
+							(maximumNumberOfThreads
+								, redundancyRatio
+								* (numberOfThreads - numberOfIdles + dequeLength))
+							, minimumNumberOfThreads))
+					{//线程超了，减少线程
+						std::chrono::time_point<std::chrono::high_resolution_clock> time;
 						{
-							unique_lock<mutex> m(_mTime);
-							time = idleStartTime;
-						}
-						if (numberOfIdles > 0 && (chrono::high_resolution_clock::now() - time) > idleLife)
-						{
-							{
-								unique_lock<mutex> m(_mThreadDeque);
-								auto unit = threadDeque.begin();
-								while (unit != threadDeque.end())
-								{
-									if (!unit->isActivate())
-									{
-										--numberOfIdles;
-										--numberOfThreads;
-										threadDeque.erase(unit);
-										break;
-									}
-									unit++;
-								}
-
-							}
+							unique_writeUnlock m0(_mCondition);
 							{
 								unique_lock<mutex> m(_mTime);
-								idleStartTime = chrono::high_resolution_clock::now();
+								time = idleStartTime;
+							}
+							if (numberOfIdles > 0 && (chrono::high_resolution_clock::now() - time) > idleLife)
+							{
+								{
+									unique_lock<mutex> m(_mThreadDeque);
+									auto unit = threadDeque.begin();
+									while (unit != threadDeque.end())
+									{
+										if (!unit->isActivate())
+										{
+											--numberOfIdles;
+											--numberOfThreads;
+											threadDeque.erase(unit);
+											break;
+										}
+										unit++;
+									}
+
+								}
+								{
+									unique_lock<mutex> m(_mTime);
+									idleStartTime = chrono::high_resolution_clock::now();
+								}
 							}
 						}
+						BlockingQueue.wait_until(m, multMath::min<std::chrono::time_point<std::chrono::high_resolution_clock>, std::chrono::time_point<std::chrono::high_resolution_clock>>(chrono::high_resolution_clock::now() + idleLife, time));
+
 					}
-					BlockingQueue.wait_until(m, multMath::min<std::chrono::time_point<std::chrono::high_resolution_clock>, std::chrono::time_point<std::chrono::high_resolution_clock>>(chrono::high_resolution_clock::now() + idleLife, time));
-					
-				}
-				else
-				{
-					BlockingQueue.wait(m);
+					else
+					{
+						BlockingQueue.wait(m);
+					}
 				}
 			}
 		}
@@ -219,9 +226,11 @@ _ThreadUnit::Task ThreadPool::functionSource()
 			fun = nullptr;
 		}
 	}
-	unique_lock<mutex> m(_mCondition);
-	BlockingDeleting.notify_all();
-	return fun;
+	{
+		unique_lock<mutex> m(_mCondition);
+		BlockingDeleting.notify_all();
+		return fun;
+	}
 }
 
 void ThreadPool::fromActivate()
@@ -276,8 +285,10 @@ void ThreadPool::fromIdle()
 				idleStartTime = chrono::high_resolution_clock::now();
 			}
 		}
-		unique_lock<mutex> m(_mCondition);
-		BlockingDeleting.notify_all();
+		{
+			unique_lock<mutex> m(_mCondition);
+			BlockingDeleting.notify_all();
+		}
 	}
 }
 
@@ -288,21 +299,24 @@ void ThreadPool::add(_ThreadUnit::Task fun)
 		functionDeque.push_back(fun);
 		++wakeUpLength;
 	}
-	unique_lock<mutex> m(_mCondition);
-	BlockingQueue.notify_one();
+	{
+		unique_lock<mutex> m(_mCondition);
+		BlockingQueue.notify_one();
+	}
 }
 
 void ThreadPool::setMinimumNumberOfThreads(const uint_fast64_t& in)
 {
 	minimumNumberOfThreads = in;
-	unique_lock<mutex> m(_mThreadDeque);
-	while (threadDeque.size() < in)
 	{
-		threadDeque.emplace_back(funSrc, fromAct, fromIdl);
-		++numberOfThreads;
-		++numberOfIdles;
+		unique_lock<mutex> m(_mThreadDeque);
+		while (threadDeque.size() < in)
+		{
+			threadDeque.emplace_back(funSrc, fromAct, fromIdl);
+			++numberOfThreads;
+			++numberOfIdles;
+		}
 	}
-
 }
 
 void ThreadPool::setMaximumNumberOfThreads(const uint_fast64_t& in)

@@ -46,47 +46,49 @@ void Scheduler::mainService(AtomicConstReference<bool> loopFlag)
 		}
 		{//执行任务与重新定时
 			std::chrono::time_point<std::chrono::high_resolution_clock> nextTime = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
-			unique_lock<mutex> m(_mTaskList);
-			if (taskList.size() <= 0)
 			{
-				workFlag = false;
-				return;
-			}
-			else
-			{
-				for (auto task = taskList.begin(); task != taskList.end();)
+				unique_lock<mutex> m(_mTaskList);
+				if (taskList.size() <= 0)
 				{
-					if (task->timePoint <= std::chrono::high_resolution_clock::now())
-					{
-						
-						threadPool->add(task->task);
-						if (task->nextPoint != std::chrono::time_point<std::chrono::high_resolution_clock>::max())
-						{
-							std::chrono::nanoseconds duration = task->nextPoint - task->timePoint;
-							
-							task->timePoint = task->nextPoint;
-							task->nextPoint += duration;
-							nextTime = multMath::min(nextTime, task->timePoint);
-							std::list<Scheduler::_TaskUnit>::iterator subTask = task;
-							do
-							{
-								if (subTask == taskList.end() || subTask->timePoint > task->timePoint)
-								{
-									taskList.insert(subTask, std::move(*task));
-									break;
-								}
-								++subTask;
-							} while (true);
-						}
-						task = taskList.erase(task);
-					}
-					else
-					{
-						nextTime = multMath::min(nextTime, task->timePoint);
-						break;
-					}
+					workFlag = false;
+					return;
 				}
-				BlockingQueue.wait_until(m, nextTime);
+				else
+				{
+					for (auto task = taskList.begin(); task != taskList.end();)
+					{
+						if (task->timePoint <= std::chrono::high_resolution_clock::now())
+						{
+
+							threadPool->add(task->task);
+							if (task->nextPoint != std::chrono::time_point<std::chrono::high_resolution_clock>::max())
+							{
+								std::chrono::nanoseconds duration = task->nextPoint - task->timePoint;
+
+								task->timePoint = task->nextPoint;
+								task->nextPoint += duration;
+								nextTime = multMath::min(nextTime, task->timePoint);
+								std::list<Scheduler::_TaskUnit>::iterator subTask = task;
+								do
+								{
+									if (subTask == taskList.end() || subTask->timePoint > task->timePoint)
+									{
+										taskList.insert(subTask, std::move(*task));
+										break;
+									}
+									++subTask;
+								} while (true);
+							}
+							task = taskList.erase(task);
+						}
+						else
+						{
+							nextTime = multMath::min(nextTime, task->timePoint);
+							break;
+						}
+					}
+					BlockingQueue.wait_until(m, nextTime);
+				}
 			}
 		}
 	} while (workFlag && loopFlag);
@@ -128,10 +130,12 @@ Scheduler::_SchedulerUnit Scheduler::addInterval(std::function<void(void)> task,
 	auto id=increment.fetch_add(1);
 	auto timePoint = std::chrono::high_resolution_clock::now() + duration;
 	auto nextPoint= timePoint + duration;
-	unique_lock<mutex> m(_mTaskList);
-	add(id, task, timePoint, nextPoint);
-	BlockingQueue.notify_one();
-	return Scheduler::_SchedulerUnit(this, id);
+	{
+		unique_lock<mutex> m(_mTaskList);
+		add(id, task, timePoint, nextPoint);
+		BlockingQueue.notify_one();
+		return Scheduler::_SchedulerUnit(this, id);
+	}
 }
 
 Scheduler::_SchedulerUnit Scheduler::addTimeOutFor(std::function<void(void)> task, const std::chrono::nanoseconds& duration)
@@ -140,10 +144,12 @@ Scheduler::_SchedulerUnit Scheduler::addTimeOutFor(std::function<void(void)> tas
 	auto id = increment.fetch_add(1);
 	auto timePoint = std::chrono::high_resolution_clock::now() + duration;
 	auto nextPoint = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
-	unique_lock<mutex> m(_mTaskList);
-	add(id, task, timePoint, nextPoint);
-	BlockingQueue.notify_one();
-	return Scheduler::_SchedulerUnit(this, id);
+	{
+		unique_lock<mutex> m(_mTaskList);
+		add(id, task, timePoint, nextPoint);
+		BlockingQueue.notify_one();
+		return Scheduler::_SchedulerUnit(this, id);
+	}
 }
 
 Scheduler::_SchedulerUnit Scheduler::addTimeOutUntil(std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint)
@@ -151,10 +157,12 @@ Scheduler::_SchedulerUnit Scheduler::addTimeOutUntil(std::function<void(void)> t
 	_TaskUnit unit;
 	auto id = increment.fetch_add(1);
 	auto nextPoint = std::chrono::time_point<std::chrono::high_resolution_clock>::max();
-	unique_lock<mutex> m(_mTaskList);
-	add(id, task, timePoint, nextPoint);
-	BlockingQueue.notify_one();
-	return Scheduler::_SchedulerUnit(this, id);
+	{
+		unique_lock<mutex> m(_mTaskList);
+		add(id, task, timePoint, nextPoint);
+		BlockingQueue.notify_one();
+		return Scheduler::_SchedulerUnit(this, id);
+	}
 }
 
 Scheduler::_SchedulerUnit::_SchedulerUnit(Scheduler* scheduler, const uint_fast64_t& id)
