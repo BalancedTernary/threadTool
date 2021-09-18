@@ -116,7 +116,7 @@ int main()
         //std::this_thread::sleep_for(std::chrono::microseconds(rand()));
     }
     tp.join();
-    //std::this_thread::sleep_for(std::chrono::seconds(1000));
+    std::this_thread::sleep_for(std::chrono::seconds(1000));
     //std::unique_lock<std::mutex> m(_mCondition);
     //BlockingQueue.wait(m, [&waitFlag]() {return waitFlag <= 0; });
     std::cout << "Hello World!\n";

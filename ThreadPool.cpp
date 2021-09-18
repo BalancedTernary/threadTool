@@ -172,7 +172,7 @@ void ThreadPool::mainService()
 								unique_lock<mutex> m(_mTime);
 								time = idleStartTime;
 							}
-							if (numberOfIdles > 0 && (chrono::high_resolution_clock::now() - time) > idleLife)
+							if (numberOfIdles > 0 && (time) < (chrono::high_resolution_clock::now() - idleLife))
 							{
 								{
 									unique_lock<mutex> m(_mThreadDeque);
@@ -225,9 +225,14 @@ _ThreadUnit::Task ThreadPool::functionSource()
 		{
 			fun = nullptr;
 		}
+		
 	}
 	{
 		unique_lock<mutex> m(_mCondition);
+		if (wakeUpLength <= 0)
+		{
+			BlockingQueue.notify_all();
+		}
 		BlockingDeleting.notify_all();
 		return fun;
 	}
