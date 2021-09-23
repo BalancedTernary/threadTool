@@ -93,14 +93,37 @@ namespace threadTool
 	};
 
 	template <typename _Mutex>
+	class unique_readUnlock
+	{
+	private:
+		_Mutex& m;
+	public:
+		unique_readUnlock(const unique_readUnlock&) = delete;
+		unique_readUnlock& operator=(const unique_readUnlock&) = delete;
+		unique_readUnlock(_Mutex& m)
+			:m(m)
+		{
+			m.unlock_shared();
+		}
+		~unique_readUnlock()
+		{
+			m.lock_shared();
+		}
+		_Mutex* operator->()
+		{
+			return &m;
+		}
+	};
+
+	template <typename _Mutex>
 	class unique_writeUnlockAll
 	{
 	private:
 		_Mutex& m;
 		Atomic<int_fast64_t> times;
 	public:
-		unique_writeUnlockAll(const unique_writeUnlock&) = delete;
-		unique_writeUnlockAll& operator=(const unique_writeUnlock&) = delete;
+		unique_writeUnlockAll(const unique_writeUnlockAll&) = delete;
+		unique_writeUnlockAll& operator=(const unique_writeUnlockAll&) = delete;
 		unique_writeUnlockAll(_Mutex& m)
 			:m(m)
 		{
@@ -129,8 +152,8 @@ namespace threadTool
 		_Mutex& m;
 		Atomic<int_fast64_t> times;
 	public:
-		unique_readUnlockAll(const unique_readUnlock&) = delete;
-		unique_readUnlockAll& operator=(const unique_readUnlock&) = delete;
+		unique_readUnlockAll(const unique_readUnlockAll&) = delete;
+		unique_readUnlockAll& operator=(const unique_readUnlockAll&) = delete;
 		unique_readUnlockAll(_Mutex& m)
 			:m(m)
 		{
