@@ -1,6 +1,6 @@
 #pragma once
-#ifndef __MINE_MUTEX__
-#define __MINE_MUTEX__
+#ifndef __DELUXE_MUTEX__
+#define __DELUXE_MUTEX__
 //×¢Òâ¿¼ÂÇÐé¼Ù»½ÐÑÎÊÌâ
 #include <thread>
 #include <mutex>
@@ -93,21 +93,58 @@ namespace threadTool
 	};
 
 	template <typename _Mutex>
-	class unique_readUnlock
+	class unique_writeUnlockAll
 	{
 	private:
 		_Mutex& m;
+		Atomic<int_fast64_t> times;
 	public:
-		unique_readUnlock(const unique_readUnlock&) = delete;
-		unique_readUnlock& operator=(const unique_readUnlock&) = delete;
-		unique_readUnlock(_Mutex& m)
+		unique_writeUnlockAll(const unique_writeUnlock&) = delete;
+		unique_writeUnlockAll& operator=(const unique_writeUnlock&) = delete;
+		unique_writeUnlockAll(_Mutex& m)
 			:m(m)
 		{
-			m.unlock_shared();
+			while (m.try_unlock())
+			{
+				++times;
+			}
 		}
-		~unique_readUnlock()
+		~unique_writeUnlockAll()
 		{
-			m.lock_shared();
+			while ((times--) > 0)
+			{
+				m.lock();
+			}
+		}
+		_Mutex* operator->()
+		{
+			return &m;
+		}
+	};
+
+	template <typename _Mutex>
+	class unique_readUnlockAll
+	{
+	private:
+		_Mutex& m;
+		Atomic<int_fast64_t> times;
+	public:
+		unique_readUnlockAll(const unique_readUnlock&) = delete;
+		unique_readUnlockAll& operator=(const unique_readUnlock&) = delete;
+		unique_readUnlockAll(_Mutex& m)
+			:m(m)
+		{
+			while (m.try_unlock_shared())
+			{
+				++times;
+			}
+		}
+		~unique_readUnlockAll()
+		{
+			while ((times--) > 0)
+			{
+				m.lock_shared();
+			}
 		}
 		_Mutex* operator->()
 		{
