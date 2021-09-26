@@ -4,13 +4,13 @@
 
 using namespace std;
 using namespace threadTool;
-Scheduler::Scheduler(ThreadPool& threadPool)
+_Scheduler::_Scheduler(ThreadPool& threadPool)
 	:mainAsync(Async<int>(threadPool, [this](AtomicConstReference<bool> loopFlag) {mainService(loopFlag); return 0; }))
 {
 	unique_lock<mutex> m1(_mDeleDeque);
 	unique_lock<mutex> m2(_mTaskList);
 
-	Scheduler::threadPool = &threadPool;
+	_Scheduler::threadPool = &threadPool;
 	increment = 0;
 	workFlag = true;
 	auto n = threadPool.getMaximumNumberOfThreads();
@@ -21,7 +21,7 @@ Scheduler::Scheduler(ThreadPool& threadPool)
 	}
 }
 
-Scheduler::~Scheduler()
+_Scheduler::~_Scheduler()
 {
 	{
 		unique_lock<mutex> m(_mTaskList);
@@ -31,7 +31,7 @@ Scheduler::~Scheduler()
 	mainAsync.get();
 }
 
-void Scheduler::mainService(AtomicConstReference<bool> loopFlag)
+void _Scheduler::mainService(AtomicConstReference<bool> loopFlag)
 {
 	do
 	{
@@ -68,7 +68,7 @@ void Scheduler::mainService(AtomicConstReference<bool> loopFlag)
 								task->timePoint = task->nextPoint;
 								task->nextPoint += duration;
 								nextTime = multMath::min(nextTime, task->timePoint);
-								std::list<Scheduler::_TaskUnit>::iterator subTask = task;
+								std::list<_Scheduler::_TaskUnit>::iterator subTask = task;
 								do
 								{
 									if (subTask == taskList.end() || subTask->timePoint > task->timePoint)
@@ -95,7 +95,7 @@ void Scheduler::mainService(AtomicConstReference<bool> loopFlag)
 
 }
 
-void Scheduler::add(const uint_fast64_t& id, std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint, const std::chrono::time_point<std::chrono::high_resolution_clock>& nextPoint)
+void _Scheduler::add(const uint_fast64_t& id, std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint, const std::chrono::time_point<std::chrono::high_resolution_clock>& nextPoint)
 {//在调用处加锁，函数内部不加锁
 	if (!workFlag)
 	{
@@ -125,7 +125,7 @@ void Scheduler::add(const uint_fast64_t& id, std::function<void(void)> task, con
 	} while (true);
 }
 
-Scheduler::_SchedulerUnit Scheduler::addInterval(std::function<void(void)> task, const std::chrono::nanoseconds& duration)
+_Scheduler::_SchedulerUnit _Scheduler::addInterval(std::function<void(void)> task, const std::chrono::nanoseconds& duration)
 {
 	auto id=increment.fetch_add(1);
 	auto timePoint = std::chrono::high_resolution_clock::now() + duration;
@@ -134,11 +134,11 @@ Scheduler::_SchedulerUnit Scheduler::addInterval(std::function<void(void)> task,
 		unique_lock<mutex> m(_mTaskList);
 		add(id, task, timePoint, nextPoint);
 		BlockingQueue.notify_one();
-		return Scheduler::_SchedulerUnit(this, id);
+		return _Scheduler::_SchedulerUnit(this, id);
 	}
 }
 
-Scheduler::_SchedulerUnit Scheduler::addTimeOutFor(std::function<void(void)> task, const std::chrono::nanoseconds& duration)
+_Scheduler::_SchedulerUnit _Scheduler::addTimeOutFor(std::function<void(void)> task, const std::chrono::nanoseconds& duration)
 {
 	_TaskUnit unit;
 	auto id = increment.fetch_add(1);
@@ -148,11 +148,11 @@ Scheduler::_SchedulerUnit Scheduler::addTimeOutFor(std::function<void(void)> tas
 		unique_lock<mutex> m(_mTaskList);
 		add(id, task, timePoint, nextPoint);
 		BlockingQueue.notify_one();
-		return Scheduler::_SchedulerUnit(this, id);
+		return _Scheduler::_SchedulerUnit(this, id);
 	}
 }
 
-Scheduler::_SchedulerUnit Scheduler::addTimeOutUntil(std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint)
+_Scheduler::_SchedulerUnit _Scheduler::addTimeOutUntil(std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint)
 {
 	_TaskUnit unit;
 	auto id = increment.fetch_add(1);
@@ -161,17 +161,17 @@ Scheduler::_SchedulerUnit Scheduler::addTimeOutUntil(std::function<void(void)> t
 		unique_lock<mutex> m(_mTaskList);
 		add(id, task, timePoint, nextPoint);
 		BlockingQueue.notify_one();
-		return Scheduler::_SchedulerUnit(this, id);
+		return _Scheduler::_SchedulerUnit(this, id);
 	}
 }
 
-Scheduler::_SchedulerUnit::_SchedulerUnit(Scheduler* scheduler, const uint_fast64_t& id)
+_Scheduler::_SchedulerUnit::_SchedulerUnit(_Scheduler* scheduler, const uint_fast64_t& id)
 	:scheduler(scheduler), id(id)
 {
 	deleted = false;
 }
 
-void Scheduler::_SchedulerUnit::deleteUnit()
+void _Scheduler::_SchedulerUnit::deleteUnit()
 {
 	if (!deleted)
 	{
@@ -179,4 +179,42 @@ void Scheduler::_SchedulerUnit::deleteUnit()
 		scheduler->deleDeque.push_back(id);
 		deleted = true;
 	}
+}
+
+std::mutex Scheduler::_m = std::mutex();
+
+map<ThreadPool*, std::shared_ptr<_Scheduler>> Scheduler::schedulers = {};
+
+Scheduler::Scheduler(ThreadPool& threadPool)
+	:threadPool(&threadPool)
+{
+	unique_lock<mutex> m(_m);
+	auto unit = schedulers.find(&threadPool);
+	if (unit == schedulers.end())
+	{
+		scheduler = std::make_shared<_Scheduler>(threadPool);
+		schedulers.insert(std::make_pair(&threadPool, scheduler));
+	}
+	else
+	{
+		scheduler = unit->second;
+	}
+}
+
+Scheduler::~Scheduler()
+{
+	scheduler.reset();
+	{
+		unique_lock<mutex> m(_m);
+		auto unit = schedulers.find(const_cast<ThreadPool*>(threadPool));
+		if (unit->second.use_count() <= 1)
+		{
+			schedulers.erase(unit);
+		}
+	}
+}
+
+_Scheduler* Scheduler::operator->()
+{
+	return scheduler.get();
 }

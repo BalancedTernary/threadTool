@@ -10,6 +10,7 @@
 #include <condition_variable>
 #include <iostream>
 #include <chrono>
+#include <map>
 #include "multMath.h"
 
 #include "ThreadPool.h"
@@ -19,17 +20,17 @@
 
 namespace threadTool
 {
-	class Scheduler
+	class _Scheduler
 	{
 	private:
 		static class _SchedulerUnit
 		{
 		private:
-			Scheduler* const scheduler;
+			_Scheduler* const scheduler;
 			const uint_fast64_t id;
 			Atomic<bool> deleted;
 		public:
-			_SchedulerUnit(Scheduler*, const uint_fast64_t&);
+			_SchedulerUnit(_Scheduler*, const uint_fast64_t&);
 			void deleteUnit();
 		};
 	private:
@@ -60,13 +61,26 @@ namespace threadTool
 		void mainService(AtomicConstReference<bool> loopFlag);
 		void add(const uint_fast64_t& id, std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint, const std::chrono::time_point<std::chrono::high_resolution_clock>& nextPoint);
 	public:
-		Scheduler(ThreadPool& threadPool);
-		~Scheduler();
+		_Scheduler(ThreadPool& threadPool);
+		~_Scheduler();
 	public:
 		_SchedulerUnit addInterval(std::function<void(void)> task, const std::chrono::nanoseconds& duration);
 		_SchedulerUnit addTimeOutFor(std::function<void(void)> task, const std::chrono::nanoseconds& duration);
 		_SchedulerUnit addTimeOutUntil(std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint);
 
+	};
+
+	class Scheduler
+	{
+	private:
+		static std::mutex _m;
+		static std::map<ThreadPool*, std::shared_ptr<_Scheduler>> schedulers;
+		std::shared_ptr<_Scheduler> scheduler;
+		const ThreadPool* threadPool;
+	public:
+		Scheduler(ThreadPool& threadPool = GlobalThreadPool::get());
+		~Scheduler();
+		_Scheduler* operator->();
 	};
 };
 

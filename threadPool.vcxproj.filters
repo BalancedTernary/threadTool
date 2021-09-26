@@ -27,6 +27,9 @@
     <ClCompile Include="Scheduler.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="MessageLimiter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ThreadPool.h">
@@ -48,6 +51,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Atomic.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MessageLimiter.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

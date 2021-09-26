@@ -76,6 +76,17 @@ namespace threadTool
 		int_least64_t getNumberOfIdles();
 
 	};
+
+	class GlobalThreadPool
+	{
+	private:
+		static std::mutex _m;
+		static ThreadPool* threadPool;
+	public:
+		GlobalThreadPool() = delete;
+	public:
+		static ThreadPool& get();
+	};
 };
 #endif
 

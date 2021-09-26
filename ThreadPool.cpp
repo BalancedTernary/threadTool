@@ -378,4 +378,20 @@ int_least64_t ThreadPool::getNumberOfIdles()
 	return numberOfIdles;
 }
 
+std::mutex GlobalThreadPool::_m = std::mutex();
+
+ThreadPool* GlobalThreadPool::threadPool = nullptr;
+
+ThreadPool& GlobalThreadPool::get()
+{
+	unique_lock<mutex> m(_m);
+	if (threadPool == nullptr)
+	{//创建后永不删除
+		threadPool = new ThreadPool();
+	}
+	return *threadPool;
+}
+
+
+
 

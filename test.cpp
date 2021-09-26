@@ -68,8 +68,8 @@ int main()
         ThreadPool tp;
         tp.setMaximumNumberOfThreads(4);
         Scheduler scheduler(tp);
-        scheduler.addTimeOutFor([]() {std::cout << "ccc" << std::endl << std::flush; }, std::chrono::seconds(10));
-        auto s = scheduler.addInterval([]() {std::cout << "bbb" << std::endl << std::flush; }, std::chrono::seconds(1));
+        scheduler->addTimeOutFor([]() {std::cout << "ccc" << std::endl << std::flush; }, std::chrono::seconds(10));
+        auto s = scheduler->addInterval([]() {std::cout << "bbb" << std::endl << std::flush; }, std::chrono::seconds(1));
         auto te = Async<std::string>(tp, [](void)
             {
                 std::this_thread::sleep_for(std::chrono::seconds(20));
@@ -77,15 +77,15 @@ int main()
             });
         std::cout << "AsyncStart" << std::endl << std::flush;
         std::cout << te.get() << std::endl << std::flush;
-        auto s2 = scheduler.addInterval([]() {std::cout << "ddd" << std::endl << std::flush; }, std::chrono::milliseconds(500));
-        auto s3 = scheduler.addInterval([]() {std::cout << "eee" << std::endl << std::flush; }, std::chrono::milliseconds(100));
+        auto s2 = scheduler->addInterval([]() {std::cout << "ddd" << std::endl << std::flush; }, std::chrono::milliseconds(500));
+        auto s3 = scheduler->addInterval([]() {std::cout << "eee" << std::endl << std::flush; }, std::chrono::milliseconds(100));
         s.deleteUnit();
         BlockingQueue.wait_for(m, std::chrono::seconds(10));
         s2.deleteUnit();
         BlockingQueue.wait_for(m, std::chrono::seconds(10));
         s3.deleteUnit();
         //BlockingQueue.wait_for(m, std::chrono::seconds(10));
-        auto s4 = scheduler.addInterval([]() {std::cout << "fff" << std::endl << std::flush; }, std::chrono::milliseconds(500));
+        auto s4 = scheduler->addInterval([]() {std::cout << "fff" << std::endl << std::flush; }, std::chrono::milliseconds(500));
         //BlockingQueue.wait_for(m, std::chrono::seconds(10));
 
     }
