@@ -171,11 +171,35 @@ _Scheduler::_SchedulerUnit::_SchedulerUnit(_Scheduler* scheduler, const uint_fas
 	deleted = false;
 }
 
-void _Scheduler::_SchedulerUnit::deleteUnit()
+_Scheduler::_SchedulerUnit::_SchedulerUnit(const _SchedulerUnit& schedulerUnit)
+	: scheduler(schedulerUnit.scheduler), id(schedulerUnit.id), deleted(schedulerUnit.deleted)
 {
+
+}
+
+_Scheduler::_SchedulerUnit& _Scheduler::_SchedulerUnit::operator= (const _SchedulerUnit& schedulerUnit)
+{
+	auto& scheduler0 = scheduler;
+	const_cast<_Scheduler*&>(scheduler0) = schedulerUnit.scheduler;
+	auto& id0 = id;
+	const_cast<uint_fast64_t&>(id0) = schedulerUnit.id;
+	deleted = schedulerUnit.deleted;
+	return *this;
+}
+
+_Scheduler::_SchedulerUnit::_SchedulerUnit()
+	: scheduler(nullptr), id(-1)
+{
+	deleted = true;
+}
+
+void _Scheduler::_SchedulerUnit::deleteUnit()
+{//todo:删除任务后已经进入线程池的任务还会继续执行，
+//所以在相关资源删除前删除任务无法无法起到安全的效果，暂未想到解决方案
 	if (!deleted)
 	{
-		unique_lock<mutex> m(scheduler->_mTaskList);
+		unique_lock<mutex> m(scheduler->_mDeleDeque);
+		unique_lock<mutex> m2(scheduler->_mTaskList);
 		scheduler->deleDeque.push_back(id);
 		deleted = true;
 	}

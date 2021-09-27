@@ -3,13 +3,33 @@
 #include "_ThreadUnit.h"
 #include "Scheduler.h"
 #include "Async.h"
-
+#include "MessageLimiter.h"
 #include <cstdlib>
 #include <string>
 #include <thread>
 using namespace threadTool;
+
+
 int main()
 {
+    {
+        ThreadPool tp;
+        std::cout << "Hello World!\n";
+        MessageLimiter ml;
+        int times = 0;
+        ml.regist(std::function<void(const int& n)>([&times](const int& n) {std::cout << "callback: " << n<<", times: "<<++times << std::endl; }));
+        int n = 0;
+        Scheduler scheduler(tp);
+        auto x=scheduler->addInterval([&n, &ml]() {std::cout << "sendMessage: " << std::endl; ml.sendMessage(++n); }, std::chrono::milliseconds(90));
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+        x.deleteUnit();
+        MessageLimiter ml2(false, MessageLimiter::DISPERSE, std::chrono::milliseconds(100), std::function<bool(const bool&, const bool&)>([](const bool& newV, const bool& oldV) {return(newV == true && oldV == false); }));
+        ml2.regist(std::function<void(const bool& n)>([&times](const bool& n) {std::cout << "callback: " << n << ", times: " << ++times << std::endl; }));
+        x = scheduler->addInterval([&n, &ml2]() {std::cout << "sendMessage: " <<n<< std::endl; ml2.sendMessage(!bool((++n)%2)); }, std::chrono::milliseconds(80));
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+        x.deleteUnit();
+        //std::this_thread::sleep_for(std::chrono::seconds(10));
+    }
     /*volatile std::atomic<int_least64_t> waitFlag;
     std::condition_variable BlockingQueue;
     std::mutex _mCondition;//条件变量锁*/
@@ -116,8 +136,9 @@ int main()
         //std::this_thread::sleep_for(std::chrono::microseconds(rand()));
     }
     tp.join();
-    std::this_thread::sleep_for(std::chrono::seconds(1000));
     //std::unique_lock<std::mutex> m(_mCondition);
     //BlockingQueue.wait(m, [&waitFlag]() {return waitFlag <= 0; });
-    std::cout << "Hello World!\n";
+    
+    std::this_thread::sleep_for(std::chrono::seconds(60));
+
 }

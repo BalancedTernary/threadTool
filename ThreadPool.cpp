@@ -384,10 +384,13 @@ ThreadPool* GlobalThreadPool::threadPool = nullptr;
 
 ThreadPool& GlobalThreadPool::get()
 {
-	unique_lock<mutex> m(_m);
 	if (threadPool == nullptr)
-	{//创建后永不删除
-		threadPool = new ThreadPool();
+	{
+		unique_lock<mutex> m(_m);
+		if (threadPool == nullptr)
+		{//创建后永不删除
+			threadPool = new ThreadPool();
+		}
 	}
 	return *threadPool;
 }

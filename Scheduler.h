@@ -22,15 +22,20 @@ namespace threadTool
 {
 	class _Scheduler
 	{
-	private:
+	public:
 		static class _SchedulerUnit
 		{
+			friend _Scheduler;
 		private:
 			_Scheduler* const scheduler;
 			const uint_fast64_t id;
 			Atomic<bool> deleted;
-		public:
+		private:
 			_SchedulerUnit(_Scheduler*, const uint_fast64_t&);
+		public:
+			_SchedulerUnit();
+			_SchedulerUnit(const _SchedulerUnit&);
+			_SchedulerUnit& operator= (const _SchedulerUnit&);
 			void deleteUnit();
 		};
 	private:

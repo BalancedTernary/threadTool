@@ -142,7 +142,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="MessageLimiter.cpp" />
     <ClCompile Include="test.cpp" />
     <ClCompile Include="Scheduler.cpp" />
     <ClCompile Include="ThreadPool.cpp" />
