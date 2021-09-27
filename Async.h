@@ -53,17 +53,17 @@ namespace threadTool
 		void reRun()
 		{
 			_m.lock();
-			if (function.index == 0)
+			if (function.index() == 0)
 			{
 				threadPool.add([this](void) {
-					buffer = this->function();
+					buffer = std::get<0>(this->function)();
 					_m.try_unlock();
 					return; });
 			}
 			else
 			{
 				threadPool.add([this](AtomicConstReference<bool> flag) {
-					buffer = this->function(flag);
+					buffer = std::get<1>(this->function)(flag);
 					_m.try_unlock();
 					return; });
 			}

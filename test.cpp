@@ -28,6 +28,8 @@ int main()
         x = scheduler->addInterval([&n, &ml2]() {std::cout << "sendMessage: " <<n<< std::endl; ml2.sendMessage(!bool((++n)%2)); }, std::chrono::milliseconds(80));
         std::this_thread::sleep_for(std::chrono::seconds(10));
         x.deleteUnit();
+        x.join();
+
         //std::this_thread::sleep_for(std::chrono::seconds(10));
     }
     /*volatile std::atomic<int_least64_t> waitFlag;

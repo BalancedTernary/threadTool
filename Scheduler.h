@@ -30,6 +30,10 @@ namespace threadTool
 			_Scheduler* const scheduler;
 			const uint_fast64_t id;
 			Atomic<bool> deleted;
+			std::shared_ptr<Atomic<int_fast64_t>> runningTimesPtr = nullptr;
+			std::shared_ptr<std::condition_variable> BlockingQueuePtr = nullptr;
+			std::shared_ptr<std::mutex> ptr_m = nullptr;
+			//std::shared_ptr<Mutex> ptr_m;
 		private:
 			_SchedulerUnit(_Scheduler*, const uint_fast64_t&);
 		public:
@@ -37,6 +41,7 @@ namespace threadTool
 			_SchedulerUnit(const _SchedulerUnit&);
 			_SchedulerUnit& operator= (const _SchedulerUnit&);
 			void deleteUnit();
+			void join();
 		};
 	private:
 		static class _TaskUnit
@@ -46,6 +51,10 @@ namespace threadTool
 			std::chrono::time_point<std::chrono::high_resolution_clock> nextPoint;
 			uint_fast64_t id;
 			std::function<void(void)> task;
+			std::shared_ptr<Atomic<int_fast64_t>> runningTimesPtr;
+			std::shared_ptr<std::condition_variable> BlockingQueuePtr;
+			std::shared_ptr<std::mutex> ptr_m;
+			//std::shared_ptr<Mutex> ptr_m;
 		};
 
 
@@ -64,7 +73,7 @@ namespace threadTool
 		
 	private:
 		void mainService(AtomicConstReference<bool> loopFlag);
-		void add(const uint_fast64_t& id, std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint, const std::chrono::time_point<std::chrono::high_resolution_clock>& nextPoint);
+		_SchedulerUnit add(const uint_fast64_t& id, std::function<void(void)> task, const std::chrono::time_point<std::chrono::high_resolution_clock>& timePoint, const std::chrono::time_point<std::chrono::high_resolution_clock>& nextPoint);
 	public:
 		_Scheduler(ThreadPool& threadPool);
 		~_Scheduler();

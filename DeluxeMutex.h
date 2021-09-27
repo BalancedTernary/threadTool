@@ -247,7 +247,7 @@ namespace threadTool
 			std::thread::id temp = getThreadID();
 			if (readers.find(temp) == readers.end())
 			{
-				std::cerr<<"readers.find(temp) != readers.end()\n"<<std::flush;
+				std::cerr<<"readers.find(temp) == readers.end()\n"<<std::flush;
 			}
 			readers.erase(readers.find(temp));//不能直接使用readers.erase(getThreadID())，因为会删掉值相同的全部元素
 			if (readingTimes != readers.size())

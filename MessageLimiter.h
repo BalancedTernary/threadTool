@@ -55,6 +55,7 @@ public:
 	~MessageLimiter()
 	{
 		schedulerUnit.deleteUnit();
+		schedulerUnit.join();
 		threadTool::unique_writeLock m(_mValue);
 		threadTool::unique_writeLock m2(_mCallbacks);
 	}
