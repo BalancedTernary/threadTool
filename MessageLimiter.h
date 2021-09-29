@@ -42,7 +42,7 @@ public:
 	* “FILTER”: 过滤器模式，仅当直通条件为TRUE时才使消息通过；
 	*/
 	template<typename _T = int>
-	MessageLimiter(_T value= 0, const Mode& mode = CONTINUE, const std::chrono::nanoseconds& period = std::chrono::milliseconds(100), std::function<bool(const _T& newValue, const _T& oldValue)> condition = [](const _T& newValue, const _T& oldValue) {return false; }, threadTool::ThreadPool& threadPool = threadTool::GlobalThreadPool::get())
+	MessageLimiter(_T value = 0, const Mode& mode = CONTINUE, const std::chrono::nanoseconds& period = std::chrono::milliseconds(100), std::function<bool(const _T& newValue, const _T& oldValue)> condition = [](const _T& newValue, const _T& oldValue) {return false; }, threadTool::ThreadPool& threadPool = threadTool::GlobalThreadPool::get())
 		:threadPool(threadPool), mode(mode), scheduler(threadPool)
 	{
 		oldValue = value;
@@ -98,7 +98,7 @@ public:
 	void sendMessage(const _T& value);
 	*/
 	template<typename _T, typename... _Args>
-	void sendMessage(const _T& value, const _Args&... parameter)
+	void sendMessage(const _T& value, const _Args&... parameters)
 	{
 		{
 			threadTool::unique_writeLock m(_mValue);
@@ -108,16 +108,16 @@ public:
 		switch (mode)
 		{
 		case IMMEDIATE:
-			immediateMethod(value, parameter...);
+			immediateMethod(value, parameters...);
 			break;
 		case CONTINUE:
-			continueMethod(value, parameter...);
+			continueMethod(value, parameters...);
 			break;
 		case DISPERSE:
-			disperseMethod(value, parameter...);
+			disperseMethod(value, parameters...);
 			break;
 		case FILTER:
-			filterMethod(value, parameter...);
+			filterMethod(value, parameters...);
 			break;
 		default:
 			break;
@@ -142,7 +142,7 @@ private:
 	}
 	*/
 	template<typename _T, typename... _Args>
-	void call(const _T& value, const _Args&... parameter)
+	void call(const _T& value, const _Args&... parameters)
 	{
 		{
 			//threadTool::unique_writeLock m(_mValue);
@@ -152,9 +152,9 @@ private:
 			threadTool::unique_readLock m(_mCallbacks);
 			for (auto& [key,callback] : callbacks)
 			{
-				threadPool.add([callback, value, parameter...]()
+				threadPool.add([callback, value, parameters...]()
 					{
-						std::any_cast<std::function<void(const _T&, const _Args&...)>>(callback)(value, parameter...);
+						std::any_cast<std::function<void(const _T&, const _Args&...)>>(callback)(value, parameters...);
 					});
 				
 			}
@@ -162,22 +162,22 @@ private:
 	}
 
 	template<typename _T, typename... _Args>
-	void immediateMethod(const _T& value, const _Args&... parameter)
+	void immediateMethod(const _T& value, const _Args&... parameters)
 	{
 		threadTool::unique_readLock m(_mValue);
-		call(std::any_cast<_T>(newValue), parameter...);
+		call(std::any_cast<_T>(newValue), parameters...);
 	}
 
 	template<typename _T, typename... _Args>
-	void continueMethod(const _T& value, const _Args&... parameter)
+	void continueMethod(const _T& value, const _Args&... parameters)
 	{
 		threadTool::unique_readLock m(_mValue);
 		if (!isNew || std::any_cast<std::function<bool(const _T & newValue, const _T & oldValue)>>(condition)(std::any_cast<_T>(newValue), std::any_cast<_T>(oldValue)))
 		{
 			schedulerUnit.deleteUnit();
 			isNew = true;
-			call(std::any_cast<_T>(newValue), parameter...);
-			schedulerUnit = scheduler->addInterval([this, value, parameter...]()
+			call(std::any_cast<_T>(newValue), parameters...);
+			schedulerUnit = scheduler->addInterval([this, value, parameters...]()
 			{
 				threadTool::unique_readLock m(_mValue);
 				if (std::any_cast<_T>(newValue) == std::any_cast<_T>(oldValue))
@@ -188,14 +188,14 @@ private:
 				else
 				{
 					isNew = true;
-					call(std::any_cast<_T>(newValue), parameter...);
+					call(std::any_cast<_T>(newValue), parameters...);
 				}
 			}, period);
 		}
 	}
 
 	template<typename _T, typename... _Args>
-	void disperseMethod(const _T& value, const _Args&... parameter)
+	void disperseMethod(const _T& value, const _Args&... parameters)
 	{
 		threadTool::unique_readLock m(_mValue);
 		if (std::any_cast<_T>(newValue) != std::any_cast<_T>(previousValue))
@@ -203,16 +203,16 @@ private:
 			schedulerUnit.deleteUnit();
 			if (std::any_cast<std::function<bool(const _T & newValue, const _T & oldValue)>>(condition)(std::any_cast<_T>(newValue), std::any_cast<_T>(oldValue)))
 			{
-				call(std::any_cast<_T>(newValue), parameter...);
+				call(std::any_cast<_T>(newValue), parameters...);
 			}
 			else
 			{
-				schedulerUnit = scheduler->addTimeOutFor([this, value, parameter...]()
+				schedulerUnit = scheduler->addTimeOutFor([this, value, parameters...]()
 				{
 					threadTool::unique_readLock m(_mValue);
 					if (std::any_cast<_T>(newValue) != std::any_cast<_T>(oldValue))
 					{
-						call(std::any_cast<_T>(newValue), parameter...);
+						call(std::any_cast<_T>(newValue), parameters...);
 					}
 				}, period);
 			}
@@ -220,12 +220,12 @@ private:
 	}
 
 	template<typename _T, typename... _Args>
-	void filterMethod(const _T& value, const _Args&... parameter)
+	void filterMethod(const _T& value, const _Args&... parameters)
 	{
 		threadTool::unique_readLock m(_mValue);
 		if (std::any_cast<std::function<bool(const _T & newValue, const _T & oldValue)>>(condition)(std::any_cast<_T>(newValue), std::any_cast<_T>(oldValue)))
 		{
-			call(std::any_cast<_T>(newValue), parameter...);
+			call(std::any_cast<_T>(newValue), parameters...);
 		}
 	}
 };

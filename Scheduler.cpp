@@ -235,9 +235,7 @@ _Scheduler::_SchedulerUnit::_SchedulerUnit()
 }
 
 void _Scheduler::_SchedulerUnit::deleteUnit()
-{//todo:删除任务后已经进入线程池的任务还会继续执行，
-//所以在相关资源删除前删除任务无法无法起到安全的效果，暂未想到解决方案
-//在发放任务前加锁，在任务结束后解锁，在删除时加解锁实现等待，锁对象放智能指针
+{
 	if (!deleted)
 	{
 		deleted = true;
