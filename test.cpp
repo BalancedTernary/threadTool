@@ -141,6 +141,6 @@ int main()
     //std::unique_lock<std::mutex> m(_mCondition);
     //BlockingQueue.wait(m, [&waitFlag]() {return waitFlag <= 0; });
     
-    std::this_thread::sleep_for(std::chrono::seconds(60));
+    //std::this_thread::sleep_for(std::chrono::seconds(60));
 
 }
