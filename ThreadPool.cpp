@@ -390,6 +390,7 @@ ThreadPool& GlobalThreadPool::get()
 		if (threadPool == nullptr)
 		{//创建后永不删除
 			threadPool = new ThreadPool();
+			threadPool->setMaximumNumberOfThreads(ULONG_MAX);
 		}
 	}
 	return *threadPool;
