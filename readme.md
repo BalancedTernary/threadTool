@@ -39,6 +39,8 @@
 
     可使用GlobalThreadPool::get()获取全局默认线程池
 
+    同一线程池有任务互斥时，注意防止浪费线程或因任务添加顺序死锁。
+
 
 2.Scheduler类：
     一个定时任务发放器，可以在指定时刻、指定时间后或周期性的将指定任务加入到线程池，
@@ -67,7 +69,7 @@
 
 4.MessageLimiter类：
     该类是消息限流器，可以防止事件回调被高频触发。
-    构造函数MessageLimiter(_T value = 0, const Mode& mode = CONTINUE, const std::chrono::nanoseconds& period = std::chrono::milliseconds(100), std::function<bool(const _T& newValue, const _T& oldValue)> condition = [](const _T& newValue, const _T& oldValue) {return false; }, threadTool::ThreadPool& threadPool = threadTool::GlobalThreadPool::get())
+    构造函数MessageLimiter(_T value = 0, const Mode& mode = CONTINUE, const std::chrono::nanoseconds& period = std::chrono::milliseconds(100), std::function<bool(const _T& newValue, const _T& oldValue)> condition = [](const _T& newValue, const _T& oldValue) {return false; }, threadTool::ThreadPool& threadPool = threadTool::GlobalThreadPool::get());
 		_T为限流器内部处理使用的值的类型，需要能够使用==运算符判断相等
         value为消息的初始值
         mode有如下四种选择（枚举）
