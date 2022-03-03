@@ -1,10 +1,10 @@
-#命名空间threadTool中主要包含了三大工具(需要C++17)  
-##1.ThreadPool类  
-##2.Scheduler类  
-##3.Async类  
-##4.MessageLimiter类  
+命名空间threadTool中主要包含了三大工具(需要C++17)  
+1.ThreadPool类  
+2.Scheduler类  
+3.Async类  
+4.MessageLimiter类  
 
-##1.ThreadPool类：
+1.ThreadPool类：
 	一个可缓存线程池，是[Scheduler类，Async类]的基础。  
     请依如下顺序构造并初始化  
     ``` cpp
@@ -43,7 +43,7 @@
     同一线程池有任务互斥时，注意防止浪费线程或因任务添加顺序死锁。  
 
 
-##2.Scheduler类：
+2.Scheduler类：
     一个定时任务发放器，可以在指定时刻、指定时间后或周期性的将指定任务加入到线程池，
     构造时需传入一个线程池。不传入时使用全局默认线程池。多次在一个线程池上构造该对象，本质上是获取了同一个对象的引用。
     。此类的每个对象将在对应的线程池中设置一个常驻的服务线程，用于任务发放。
@@ -62,13 +62,13 @@
     删除操作不等待已运行的任务结束。  
     在释放资源前需要等待已运行的任务结束，请在deleteUnit后调用join()。  
 
-##3.Async类：
+3.Async类：
     可以方便的在线程池中添加简单的异步任务。构造时传入线程池和函数，构造后任务自动开始执行。  
     可以通过check()函数检查任务是否执行完成，返回True则任务已执行完成。  
     可以通过get()函数获取任务函数的返回值，如果调用时函数未执行完毕则阻塞。  
     可以通过reRun()函数重新执行任务。  
 
-##4.MessageLimiter类：
+4.MessageLimiter类：
     该类是消息限流器，可以防止事件回调被高频触发。  
     构造函数MessageLimiter(_T value = 0, const Mode& mode = CONTINUE, const std::chrono::nanoseconds& period = std::chrono::milliseconds(100), std::function<bool(const _T& newValue, const _T& oldValue)> condition = [](const _T& newValue, const _T& oldValue) {return false; }, threadTool::ThreadPool& threadPool = threadTool::GlobalThreadPool::get());  
 		_T为限流器内部处理使用的值的类型，需要能够使用==运算符判断相等  
@@ -85,12 +85,17 @@
             对于连续值模式，condition返回值为true时，消息直接通过，否则进入类节流逻辑  
             对于离散值模式，消息发生变化且condition返回值为true时，消息直接通过，否则进入类防抖逻辑  
         threadPool为工作使用的线程池，不填将使用全局默认线程池。  
+    
     通过void regist(std::function<void(const _T&, const _Args&...)> callback)注册消息回调函数。  
         args为可选附加参数组，不参与逻辑  
+
     通过void regist(const std::string& key, std::function<void(const _T&, const _Args&...)> callback)在key上注册消息回调函数  
         一个key上可以注册多个回调函数  
+
     通过void unregist(const std::string& key)删除注册在key上的回调函数  
+
     通过void sendMessage(const _T& value, const _Args&... parameters)发送消息  
         必须保证parameter的数量和类型和注册的回调函数接受的一致，如不一致则抛出std::bad_any_cast异常  
+
     同一对象内，所有函数的_T应保持一致，否则会触发std::bad_any_cast异常  
     
