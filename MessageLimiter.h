@@ -52,6 +52,16 @@ public:
 		isNew = false;
 	}
 
+	MessageLimiter(const MessageLimiter& messageLimiter)
+		:threadPool(messageLimiter.threadPool), mode(messageLimiter.mode), scheduler(messageLimiter.scheduler)
+	{
+		oldValue = messageLimiter.oldValue;
+		newValue = messageLimiter.newValue;
+		period = messageLimiter.period;
+		condition = messageLimiter.condition;
+		isNew = false;
+	}
+
 	~MessageLimiter()
 	{
 		schedulerUnit.deleteUnit();
